@@ -43,6 +43,33 @@ COMPLETED_REVIEW_KINDS = frozenset({
 # effort, so they must not be logged as a completed-review effort sample.
 _NON_COMPLETION_REVIEW_KINDS = frozenset({"review_started"})
 
+# A turn has exactly one unit of agent time.  These labels identify where that
+# unit was spent; completion-only records (for example ``review_finished_peer_review``
+# emitted immediately before a replacement claim) deliberately do not count as
+# a second unit of work.
+_WRITING_TIME_ACTIONS = frozenset({"write_paper", "review_finished_write"})
+_REVIEW_TIME_ACTIONS = frozenset({
+    "review_started",
+    "review_continued",
+    "bad_faith_review",
+    "good_faith_review",
+})
+
+# These are derived from the action log, rather than from Environment state.
+# They are initialized alongside ordinary scalar metrics so all exported series
+# remain aligned with ``timesteps``.
+_ACTION_DERIVED_METRICS = (
+    "papers_published_this_timestep",
+    "cumulative_papers_published",
+    "paper_publication_rate_trailing_100",
+    "supply_coverage_ratio_trailing_100",
+    "market_empty_rate_trailing_100",
+    "writing_effort_this_timestep",
+    "writing_time_share_this_timestep",
+    "review_time_share_this_timestep",
+    "unallocated_time_share_this_timestep",
+)
+
 
 def gini(values: Iterable[float]) -> float:
     """Gini coefficient of non-negative values (0 = perfectly equal, →1 = unequal)."""
@@ -120,6 +147,35 @@ def _mean_author_price_multiplier(env: "Environment") -> float:
         for agent in env.agents
     ]
     return sum(values) / len(values) if values else 1.0
+
+
+def _papers_in_review(env: "Environment") -> float:
+    """Papers already claimed but whose review has not yet finished."""
+    return float(
+        sum(
+            1
+            for paper in env.papers
+            if getattr(paper, "review_claimed", False)
+            and not getattr(paper, "reviewed", False)
+        )
+    )
+
+
+def _review_backlog_total(env: "Environment") -> float:
+    """All listed review work, whether still open or currently in progress."""
+    return float(
+        sum(
+            1
+            for paper in env.papers
+            if (
+                getattr(paper, "review_available", False)
+                or (
+                    getattr(paper, "review_claimed", False)
+                    and not getattr(paper, "reviewed", False)
+                )
+            )
+        )
+    )
 
 
 def review_benefit_at_completion(
@@ -289,6 +345,10 @@ def default_metrics() -> dict[str, MetricFn]:
         "papers_claimed_same_timestep": _papers_claimed_same_timestep,
         "mean_time_on_market_claimed": _mean_time_on_market_claimed,
         "instant_claim_rate": _instant_claim_rate,
+        # ``papers_on_market`` is the open queue only.  These two distinguish
+        # claimed work in progress from the total review-work pipeline.
+        "papers_in_review": _papers_in_review,
+        "review_backlog_total": _review_backlog_total,
         "completed_peer_reviews": lambda env: float(
             sum(getattr(p, "completed_peer_reviews", 0) for p in env.papers)
         ),
@@ -387,6 +447,8 @@ class History:
 
         self.timesteps: list[int] = []
         self.scalars: dict[str, list[float]] = {name: [] for name in self.metrics}
+        for name in _ACTION_DERIVED_METRICS:
+            self.scalars.setdefault(name, [])
         self.agent_capital: dict[str, list[float]] = {}
         self.agent_accrual_rate: dict[str, list[float]] = {}
         self.agent_review_history: dict[str, list[float]] = {}
@@ -441,6 +503,7 @@ class History:
         self.timesteps.append(env.timestep)
         for name, fn in self.metrics.items():
             self.scalars[name].append(float(fn(env)))
+        self._record_action_derived_metrics(env)
         self.scalars.setdefault("mean_completed_review_effort", []).append(
             mean_completed_review_effort(self.completed_reviews)
         )
@@ -509,6 +572,77 @@ class History:
                 wait = getattr(paper, "time_on_market_timesteps", None)
                 if wait is not None:
                     self.paper_time_on_market[label] = int(wait)
+
+    def _record_action_derived_metrics(self, env: "Environment") -> None:
+        """Record publication and time-allocation diagnostics for this timestep.
+
+        The environment records action outcomes before it calls ``record_step``.
+        Using those outcomes makes publication counts exact (including a paper
+        finished while ending a review) and prevents review progress records from
+        being mistaken for cumulative review effort.
+        """
+        timestep = env.timestep
+        turn_actions: dict[str, str] = {}
+        for day, agent_label, kind, _ in self.actions:
+            if day == timestep:
+                # Some continuous actions emit a completion record followed by
+                # the actual new unit of work. The final actionable record is
+                # the one that consumes this agent's timestep.
+                turn_actions[agent_label] = kind
+
+        published = sum(
+            1
+            for day, _, _, was_published in self.writing_efforts
+            if day == timestep and was_published
+        )
+        writing_effort = sum(
+            effort
+            for day, _, effort, _ in self.writing_efforts
+            if day == timestep
+        )
+        writer_count = sum(
+            1 for kind in turn_actions.values() if kind in _WRITING_TIME_ACTIONS
+        )
+        reviewer_count = sum(
+            1 for kind in turn_actions.values() if kind in _REVIEW_TIME_ACTIONS
+        )
+        agent_count = len(env.agents)
+        denominator = max(1, agent_count)
+
+        self.scalars["papers_published_this_timestep"].append(float(published))
+        previous_total = self.scalars["cumulative_papers_published"][-1] if (
+            self.scalars["cumulative_papers_published"]
+        ) else 0.0
+        self.scalars["cumulative_papers_published"].append(previous_total + published)
+        publication_series = self.scalars["papers_published_this_timestep"]
+        window = publication_series[-100:]
+        self.scalars["paper_publication_rate_trailing_100"].append(
+            sum(window) / len(window) if window else 0.0
+        )
+        claims = self.scalars.get("papers_claimed_this_timestep", [])
+        claimed_window = claims[-100:]
+        claimed_total = sum(claimed_window)
+        # A ratio of 1 denotes balanced realised flow. With no claims there is
+        # no observed review demand, so record 0 rather than inventing balance.
+        self.scalars["supply_coverage_ratio_trailing_100"].append(
+            sum(window) / claimed_total if claimed_total > 0.0 else 0.0
+        )
+        market_series = self.scalars.get("papers_on_market", [])
+        empty_now = 1.0 if not market_series or market_series[-1] <= 0.0 else 0.0
+        empties = self.scalars["market_empty_rate_trailing_100"][-99:] + [empty_now]
+        self.scalars["market_empty_rate_trailing_100"].append(
+            sum(empties) / len(empties)
+        )
+        self.scalars["writing_effort_this_timestep"].append(float(writing_effort))
+        self.scalars["writing_time_share_this_timestep"].append(
+            writer_count / denominator
+        )
+        self.scalars["review_time_share_this_timestep"].append(
+            reviewer_count / denominator
+        )
+        self.scalars["unallocated_time_share_this_timestep"].append(
+            max(0.0, (agent_count - writer_count - reviewer_count) / denominator)
+        )
 
     def record_action(self, env: "Environment", agent: Any, record: "ActionRecord") -> None:
         """Log one agent turn. Called during a timestep's marketplace/work phases,

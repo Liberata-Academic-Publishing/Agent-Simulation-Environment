@@ -34,14 +34,17 @@ class SimConfig:
     num_low_talent_rl_agents: int = 0
     num_timesteps: int = 5000
     seed: int = 11
-    forecast_horizon_timesteps: int = 30
+    # Must cover manuscript completion plus a post-publication earning window;
+    # otherwise writing has zero value in the agents' forward-looking choices.
+    forecast_horizon_timesteps: int = 200
     output_dir: str = "runs"
 
     # --- Initial papers --------------------------------------------------
     # Papers seeded before timestep 1 (bootstraps review material). Set
     # init_papers_per_agent=0 for no starting papers, or init_ac_min=init_ac_max=0
     # to start every agent at zero capital.
-    init_papers_per_agent: int = 10
+    init_papers_per_agent: int = 2
+    initial_listing_stagger_timesteps: int = 50
     init_ac_min: float = 0
     init_ac_max: float = 0
     init_accrual_min: float = 0.8
@@ -101,8 +104,8 @@ class SimConfig:
     review_paradigm: str = "continuous"       # "continuous" | "discrete"
     review_effort_per_timestep: float = 1.0     # effort added per review timestep
     writing_effort_per_timestep: float = 1.0    # continuous writing effort per timestep
-    min_review_effort_threshold: float = 0.0    # minimum valid review/share effort
-    good_faith_review_threshold: float = 3.0    # continuous-mode classification
+    min_review_effort_threshold: float = 3.0    # minimum valid review/share effort
+    good_faith_review_threshold: float = 5.0    # continuous-mode classification
     bad_review_timesteps: float = 1.0           # discrete bad-faith duration (T_B)
     # Fallback when continuous publishing is ``choice``; otherwise derived from
     # ``good_faith_review_threshold`` (see ``discrete_good_review_timesteps``).
@@ -162,9 +165,9 @@ class SimConfig:
     # --- RL agents (part of the simulation) ------------------------------
     rl_backend: str = "tabular"     # "tabular" | "linear"
     rl_epsilon: float = 0.1         # exploration when learning online
-    rl_gamma: float = 0.95          # TD discount
-    rl_reward_ac_weight: float = 0.0      # weight on Δ academic capital
-    rl_reward_rank_weight: float = 100.0   # weight on Δ AC percentile rank (0..1)
+    rl_gamma: float = 0.99          # TD discount; preserves delayed paper rewards
+    rl_reward_ac_weight: float = 1.0      # weight on Δ academic capital
+    rl_reward_rank_weight: float = 10.0   # avoid a dominant short-term rank race
     rl_reward_accrual_weight: float = 1.0  # weight on Δ portfolio accrual rate
     rl_autoload_policy: bool = True  # auto-load the saved baseline for RL agents
     rl_low_talent_autoload_policy: bool = True  # auto-load low-talent RL policy

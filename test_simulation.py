@@ -908,6 +908,50 @@ class EnvironmentTest(unittest.TestCase):
         self.assertAlmostEqual(history.agent_capital["author"][0], 9.0)
         self.assertEqual(history.scalars["num_papers"][0], 1.0)
 
+    def test_history_records_publication_and_time_allocation_metrics(self):
+        author = ScriptAgent("author", continuous=[("research_finish", None)])
+        history = History()
+        env = Environment(
+            agents=[author],
+            papers=[],
+            history=history,
+            continuous_publishing="choice",
+        )
+
+        env.run_timestep()
+
+        self.assertEqual(history.scalars["papers_published_this_timestep"], [1.0])
+        self.assertEqual(history.scalars["cumulative_papers_published"], [1.0])
+        self.assertEqual(history.scalars["paper_publication_rate_trailing_100"], [1.0])
+        self.assertEqual(history.scalars["writing_time_share_this_timestep"], [1.0])
+        self.assertEqual(history.scalars["review_time_share_this_timestep"], [0.0])
+        self.assertEqual(history.scalars["unallocated_time_share_this_timestep"], [0.0])
+
+    def test_history_distinguishes_open_and_in_progress_review_backlog(self):
+        author = ScriptAgent("author")
+        reviewer = ReviewKindScriptAgent(
+            GOOD_FAITH_REVIEW, name="reviewer", marketplace=[]
+        )
+        paper = _listed_paper(author, quality=1.0)
+        reviewer.marketplace = [paper]
+        Agent.all_papers = [paper]
+        history = History()
+        env = Environment(
+            agents=[author, reviewer],
+            papers=Agent.all_papers,
+            history=history,
+            review_paradigm="discrete",
+            use_merit_market_clearing=False,
+        )
+
+        env.run_timestep()
+
+        self.assertEqual(history.scalars["papers_on_market"][-1], 0.0)
+        self.assertEqual(history.scalars["papers_in_review"][-1], 1.0)
+        self.assertEqual(history.scalars["review_backlog_total"][-1], 1.0)
+        self.assertEqual(history.scalars["writing_time_share_this_timestep"][-1], 0.5)
+        self.assertEqual(history.scalars["review_time_share_this_timestep"][-1], 0.5)
+
     def test_history_exports_agent_group_summary(self):
         author = ScriptAgent("author")
         reviewer = ReviewKindScriptAgent(

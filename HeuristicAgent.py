@@ -250,10 +250,21 @@ class HeuristicAgent(Agent):
     def _expected_claim_value(self, paper: Paper | None) -> float:
         if paper is None:
             return 0.0
-        raw = self._score_claim(paper)
+        # A manuscript plan is evaluated as value per required writing timestep.
+        # Claims must use the same unit: otherwise the whole horizon of review
+        # ownership is compared with just one timestep of research, making every
+        # positive review offer look artificially dominant.
+        duration = self._expected_review_duration()
+        raw = self._score_claim(paper) / duration
         if not self.use_competition_adjusted_forecast:
             return raw
         return self._claim_win_probability() * raw
+
+    def _expected_review_duration(self) -> float:
+        """Minimum credible work time used for a new-review opportunity cost."""
+        if self.review_paradigm == REVIEW_PARADIGM_DISCRETE:
+            return max(1.0, float(BAD_REVIEW_TIMESTEPS))
+        return max(1.0, float(MIN_REVIEW_EFFORT_THRESHOLD))
 
     # ---- scoring ---------------------------------------------------------
     def _review_value(self, paper: Paper, effort: float, horizon: float) -> float:
