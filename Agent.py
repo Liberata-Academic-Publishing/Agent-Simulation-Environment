@@ -584,6 +584,14 @@ class Agent(ABC):
         self._clear_last_review_result()
         kind, paper = self.choose_continuous_action()
 
+        # A reviewer has committed one unit of capacity to the current paper.
+        # Allowing a fresh claim to finalize it immediately lets agents consume
+        # scarce review slots with sub-threshold work. Continuous-mode switches
+        # therefore continue the existing review; a later explicit research turn
+        # is the only way to finish and release that commitment.
+        if kind == CONTINUOUS_CLAIM and self.active_review_paper is not None:
+            kind, paper = CONTINUOUS_REVIEW, None
+
         if kind == CONTINUOUS_CLAIM and paper is not None and paper.can_start_review(self):
             records: list[ActionRecord] = []
             finalized = self.claim_review(paper)
