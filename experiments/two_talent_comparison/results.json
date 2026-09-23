@@ -1,0 +1,625 @@
+{
+  "config": {
+    "num_heuristic_agents": 0,
+    "num_rl_agents": 20,
+    "num_dqn_agents": 0,
+    "num_random_agents": 0,
+    "num_probabilistic_agents": 0,
+    "num_low_talent_rl_agents": 0,
+    "num_timesteps": 5000,
+    "seed": 11,
+    "forecast_horizon_timesteps": 200,
+    "output_dir": "runs",
+    "init_papers_per_agent": 2,
+    "initial_listing_stagger_timesteps": 50,
+    "init_ac_min": 0,
+    "init_ac_max": 0,
+    "init_accrual_min": 0.8,
+    "init_accrual_max": 1.5,
+    "default_accrual_rate": 1.0,
+    "default_review_share": 0.005,
+    "default_max_reviewer_share": 1.0,
+    "min_offer_share": 0.0001,
+    "use_fair_market_pricing": true,
+    "prior_review_epsilon": 0.05,
+    "pricing_policy": "adaptive_multiplier",
+    "adaptive_pricing_mode": "binned",
+    "target_market_wait_timesteps": 1.0,
+    "adaptive_pricing_learning_rate": 0.1,
+    "min_author_price_multiplier": 0.0005,
+    "max_author_price_multiplier": 10.0,
+    "reputation_bin_edges": [
+      0.08,
+      0.15
+    ],
+    "reputation_bin_names": [
+      "low",
+      "mid",
+      "high"
+    ],
+    "adaptive_raise_bins": [
+      "high"
+    ],
+    "adaptive_lower_bins": [
+      "low",
+      "mid"
+    ],
+    "adaptive_slow_raise_bins": [
+      "low",
+      "mid",
+      "high"
+    ],
+    "fast_claim_max_wait": 0.0,
+    "reviewer_surplus_share": 0.5,
+    "use_competition_adjusted_forecast": true,
+    "use_scarcity_pricing": true,
+    "reviewer_pressure_exponent": 0.5,
+    "use_merit_market_clearing": true,
+    "quality_sigma": 0.2,
+    "talent_rate_sigma": 0.2,
+    "talent_min_rate": 0.01,
+    "talent_low": 0.6,
+    "talent_high": 1.4,
+    "talent_agents_per_group": 20,
+    "min_paper_quality": 0.1,
+    "quality_price_scale": 1.5,
+    "history_price_scale": 0.5,
+    "review_paradigm": "continuous",
+    "review_effort_per_timestep": 1.0,
+    "writing_effort_per_timestep": 1.0,
+    "min_review_effort_threshold": 3.0,
+    "good_faith_review_threshold": 5.0,
+    "bad_review_timesteps": 1.0,
+    "good_review_timesteps": 5.0,
+    "review_effort_curve": "sigmoid",
+    "min_review_accrual_bump": 0.0,
+    "max_review_accrual_bump": 0.6,
+    "review_sigmoid_midpoint": 3.0,
+    "review_sigmoid_steepness": 0.5,
+    "review_sigmoid_saturation_effort": 25.0,
+    "review_jump_threshold": 15.0,
+    "review_jump_bump": 0.5,
+    "review_jump_width": 0.75,
+    "base_review_accrual_bump": 0.2,
+    "first_extra_day_bump": 0.1,
+    "review_bump_duration": "permanent",
+    "review_bump_decay_rate": 0.05,
+    "review_bump_decay_cap_timesteps": 800,
+    "paper_threshold": 10.0,
+    "continuous_publishing": "threshold",
+    "continuous_paper_timesteps": 50.0,
+    "discrete_paper_timesteps": 200.0,
+    "discrete_writing_effort_per_timestep": 1.0,
+    "paper_effort_mode": "quality_scaled",
+    "paper_effort_min": 130.0,
+    "paper_effort_max": 170.0,
+    "writing_saturation": 0.2,
+    "random_claim_probability": 0.5,
+    "random_good_faith_probability": 0.5,
+    "probabilistic_claim_probability": 0.5,
+    "probabilistic_good_faith_probability": 0.5,
+    "expected_write_progress": 0.5,
+    "max_forecast_effort": 25,
+    "continue_marginal_weight": 0.15,
+    "preferred_extra_review_timesteps": 4.0,
+    "rl_backend": "tabular",
+    "rl_epsilon": 0.1,
+    "rl_gamma": 0.99,
+    "rl_reward_ac_weight": 1.0,
+    "rl_reward_rank_weight": 10.0,
+    "rl_reward_accrual_weight": 1.0,
+    "rl_autoload_policy": true,
+    "rl_low_talent_autoload_policy": true,
+    "talent_min": 0.6,
+    "talent_max": 1.4,
+    "low_talent_value": 0.3,
+    "policies_dir": "policies",
+    "gallery_action_limit": 5000,
+    "dqn_hidden_size": 64,
+    "dqn_hidden_layers": 2,
+    "dqn_lr": 0.001,
+    "dqn_gamma": 0.95,
+    "dqn_epsilon": 0.1,
+    "dqn_replay_capacity": 10000,
+    "dqn_batch_size": 32,
+    "dqn_target_sync": 200,
+    "dqn_autoload_policy": true
+  },
+  "overrides": {
+    "steps": 1000,
+    "seeds": "1,2,3,4,5",
+    "initial_papers": 0,
+    "continuous_publishing": "threshold",
+    "paper_effort_mode": "fixed",
+    "review_paradigm": "continuous",
+    "use_merit_market_clearing": false
+  },
+  "per_seed": [
+    {
+      "seed": 1,
+      "group": "quality_low_rate_low",
+      "papers_per_agent": 10.3,
+      "reviews_per_agent": 10.05,
+      "writing_percent": 90.83,
+      "review_percent": 9.17,
+      "initial_quality": 0.6148558608805763,
+      "review_quality": 0.6010638648191239,
+      "review_delta": 0.23404713789445686,
+      "capital": 3455.2134711945682,
+      "review_capital": 228.25582336227367,
+      "good_reviews": 201,
+      "bad_reviews": 0
+    },
+    {
+      "seed": 1,
+      "group": "quality_low_rate_high",
+      "papers_per_agent": 24.35,
+      "reviews_per_agent": 24.0,
+      "writing_percent": 90.25,
+      "review_percent": 9.75,
+      "initial_quality": 0.616642723025318,
+      "review_quality": 0.59257711486401,
+      "review_delta": 0.24174972836093486,
+      "capital": 8561.09661180217,
+      "review_capital": 561.8761952551799,
+      "good_reviews": 480,
+      "bad_reviews": 0
+    },
+    {
+      "seed": 1,
+      "group": "quality_high_rate_low",
+      "papers_per_agent": 10.1,
+      "reviews_per_agent": 10.05,
+      "writing_percent": 91.17,
+      "review_percent": 8.83,
+      "initial_quality": 1.4212865243579687,
+      "review_quality": 1.3966583711477323,
+      "review_delta": 0.5619310225030806,
+      "capital": 10139.59121848071,
+      "review_capital": 779.673804658618,
+      "good_reviews": 201,
+      "bad_reviews": 0
+    },
+    {
+      "seed": 1,
+      "group": "quality_high_rate_high",
+      "papers_per_agent": 24.3,
+      "reviews_per_agent": 24.15,
+      "writing_percent": 90.18,
+      "review_percent": 9.82,
+      "initial_quality": 1.4026238852656225,
+      "review_quality": 1.4030468303121346,
+      "review_delta": 0.5738166089756397,
+      "capital": 26085.140706785183,
+      "review_capital": 2085.4070173480286,
+      "good_reviews": 483,
+      "bad_reviews": 0
+    },
+    {
+      "seed": 2,
+      "group": "quality_low_rate_low",
+      "papers_per_agent": 10.15,
+      "reviews_per_agent": 10.05,
+      "writing_percent": 91.18,
+      "review_percent": 8.82,
+      "initial_quality": 0.6167847458559845,
+      "review_quality": 0.6186220753666517,
+      "review_delta": 0.24735138476027413,
+      "capital": 3573.0858826358185,
+      "review_capital": 290.1490263248753,
+      "good_reviews": 201,
+      "bad_reviews": 0
+    },
+    {
+      "seed": 2,
+      "group": "quality_low_rate_high",
+      "papers_per_agent": 24.25,
+      "reviews_per_agent": 24.05,
+      "writing_percent": 90.215,
+      "review_percent": 9.785,
+      "initial_quality": 0.6065324461541812,
+      "review_quality": 0.5840816984516259,
+      "review_delta": 0.25641784362729153,
+      "capital": 8395.914940896846,
+      "review_capital": 649.6480271638424,
+      "good_reviews": 481,
+      "bad_reviews": 0
+    },
+    {
+      "seed": 2,
+      "group": "quality_high_rate_low",
+      "papers_per_agent": 10.15,
+      "reviews_per_agent": 10.0,
+      "writing_percent": 91.01,
+      "review_percent": 8.99,
+      "initial_quality": 1.3980654251249338,
+      "review_quality": 1.4001240268534736,
+      "review_delta": 0.5089399035852531,
+      "capital": 10146.99389268464,
+      "review_capital": 804.9899346236615,
+      "good_reviews": 200,
+      "bad_reviews": 0
+    },
+    {
+      "seed": 2,
+      "group": "quality_high_rate_high",
+      "papers_per_agent": 24.4,
+      "reviews_per_agent": 23.95,
+      "writing_percent": 90.23,
+      "review_percent": 9.77,
+      "initial_quality": 1.4077828500149676,
+      "review_quality": 1.4132535483447743,
+      "review_delta": 0.5685938684632094,
+      "capital": 25823.136681836113,
+      "review_capital": 2174.889098835291,
+      "good_reviews": 479,
+      "bad_reviews": 0
+    },
+    {
+      "seed": 3,
+      "group": "quality_low_rate_low",
+      "papers_per_agent": 10.1,
+      "reviews_per_agent": 10.05,
+      "writing_percent": 91.05,
+      "review_percent": 8.95,
+      "initial_quality": 0.6119656197473953,
+      "review_quality": 0.6129717142166127,
+      "review_delta": 0.24074756570227923,
+      "capital": 3398.1851914254544,
+      "review_capital": 233.50785028563183,
+      "good_reviews": 201,
+      "bad_reviews": 0
+    },
+    {
+      "seed": 3,
+      "group": "quality_low_rate_high",
+      "papers_per_agent": 24.3,
+      "reviews_per_agent": 24.05,
+      "writing_percent": 90.2,
+      "review_percent": 9.8,
+      "initial_quality": 0.6060202375860687,
+      "review_quality": 0.6060341323890874,
+      "review_delta": 0.2763774393860002,
+      "capital": 8349.684027059708,
+      "review_capital": 573.0035026351845,
+      "good_reviews": 481,
+      "bad_reviews": 0
+    },
+    {
+      "seed": 3,
+      "group": "quality_high_rate_low",
+      "papers_per_agent": 10.2,
+      "reviews_per_agent": 10.05,
+      "writing_percent": 91.04,
+      "review_percent": 8.96,
+      "initial_quality": 1.4011900296540378,
+      "review_quality": 1.4328506600944884,
+      "review_delta": 0.5377750967284116,
+      "capital": 10208.977549253565,
+      "review_capital": 789.5035648675537,
+      "good_reviews": 201,
+      "bad_reviews": 0
+    },
+    {
+      "seed": 3,
+      "group": "quality_high_rate_high",
+      "papers_per_agent": 24.15,
+      "reviews_per_agent": 24.0,
+      "writing_percent": 90.165,
+      "review_percent": 9.835,
+      "initial_quality": 1.4062223568804169,
+      "review_quality": 1.4086821792636681,
+      "review_delta": 0.5502007191953544,
+      "capital": 25727.463227068834,
+      "review_capital": 2026.5986000042612,
+      "good_reviews": 480,
+      "bad_reviews": 0
+    },
+    {
+      "seed": 4,
+      "group": "quality_low_rate_low",
+      "papers_per_agent": 10.1,
+      "reviews_per_agent": 10.05,
+      "writing_percent": 91.125,
+      "review_percent": 8.875,
+      "initial_quality": 0.6042077918035323,
+      "review_quality": 0.6128454014298623,
+      "review_delta": 0.23612200658164642,
+      "capital": 3398.6729362488854,
+      "review_capital": 267.6474272769743,
+      "good_reviews": 201,
+      "bad_reviews": 0
+    },
+    {
+      "seed": 4,
+      "group": "quality_low_rate_high",
+      "papers_per_agent": 24.35,
+      "reviews_per_agent": 24.0,
+      "writing_percent": 90.21,
+      "review_percent": 9.79,
+      "initial_quality": 0.6155673510348906,
+      "review_quality": 0.5986094621785344,
+      "review_delta": 0.25968476722276546,
+      "capital": 8658.213931364915,
+      "review_capital": 587.1522086529288,
+      "good_reviews": 480,
+      "bad_reviews": 0
+    },
+    {
+      "seed": 4,
+      "group": "quality_high_rate_low",
+      "papers_per_agent": 10.25,
+      "reviews_per_agent": 10.05,
+      "writing_percent": 91.055,
+      "review_percent": 8.945,
+      "initial_quality": 1.4212331656269945,
+      "review_quality": 1.3828562943209841,
+      "review_delta": 0.5210056734086338,
+      "capital": 10527.60597937528,
+      "review_capital": 820.1670147903693,
+      "good_reviews": 201,
+      "bad_reviews": 0
+    },
+    {
+      "seed": 4,
+      "group": "quality_high_rate_high",
+      "papers_per_agent": 24.3,
+      "reviews_per_agent": 24.0,
+      "writing_percent": 90.17,
+      "review_percent": 9.83,
+      "initial_quality": 1.4158018481122727,
+      "review_quality": 1.3880177203305768,
+      "review_delta": 0.5914919316262519,
+      "capital": 26008.493421794796,
+      "review_capital": 2068.1580980782505,
+      "good_reviews": 480,
+      "bad_reviews": 0
+    },
+    {
+      "seed": 5,
+      "group": "quality_low_rate_low",
+      "papers_per_agent": 10.15,
+      "reviews_per_agent": 10.0,
+      "writing_percent": 90.995,
+      "review_percent": 9.005,
+      "initial_quality": 0.6174509736609178,
+      "review_quality": 0.6118141107278374,
+      "review_delta": 0.24453041132440798,
+      "capital": 3405.0289483109013,
+      "review_capital": 239.19867032310808,
+      "good_reviews": 200,
+      "bad_reviews": 0
+    },
+    {
+      "seed": 5,
+      "group": "quality_low_rate_high",
+      "papers_per_agent": 24.4,
+      "reviews_per_agent": 24.05,
+      "writing_percent": 90.22,
+      "review_percent": 9.78,
+      "initial_quality": 0.6207119999852214,
+      "review_quality": 0.6024494237684671,
+      "review_delta": 0.2563695946442194,
+      "capital": 8698.341236824752,
+      "review_capital": 644.7131031180932,
+      "good_reviews": 481,
+      "bad_reviews": 0
+    },
+    {
+      "seed": 5,
+      "group": "quality_high_rate_low",
+      "papers_per_agent": 10.1,
+      "reviews_per_agent": 10.0,
+      "writing_percent": 91.02,
+      "review_percent": 8.98,
+      "initial_quality": 1.3954697400154135,
+      "review_quality": 1.3848153998098367,
+      "review_delta": 0.531699181540629,
+      "capital": 10135.639699608051,
+      "review_capital": 741.3270892361847,
+      "good_reviews": 200,
+      "bad_reviews": 0
+    },
+    {
+      "seed": 5,
+      "group": "quality_high_rate_high",
+      "papers_per_agent": 24.25,
+      "reviews_per_agent": 24.05,
+      "writing_percent": 90.19,
+      "review_percent": 9.81,
+      "initial_quality": 1.4032103810977983,
+      "review_quality": 1.4098679658416677,
+      "review_delta": 0.5934314018221775,
+      "capital": 26297.402325304778,
+      "review_capital": 2141.233290892824,
+      "good_reviews": 481,
+      "bad_reviews": 0
+    }
+  ],
+  "summary": {
+    "quality_low_rate_low": {
+      "papers_per_agent": {
+        "mean": 10.16,
+        "seed_sd": 0.08215838362577532
+      },
+      "reviews_per_agent": {
+        "mean": 10.040000000000001,
+        "seed_sd": 0.022360679774998216
+      },
+      "writing_percent": {
+        "mean": 91.036,
+        "seed_sd": 0.13506479926317055
+      },
+      "review_percent": {
+        "mean": 8.964,
+        "seed_sd": 0.13506479926316847
+      },
+      "initial_quality": {
+        "mean": 0.6130529983896813,
+        "seed_sd": 0.005383737332539019
+      },
+      "review_quality": {
+        "mean": 0.6114634333120176,
+        "seed_sd": 0.006397360837107658
+      },
+      "review_delta": {
+        "mean": 0.24055970125261292,
+        "seed_sd": 0.005568559326267922
+      },
+      "capital": {
+        "mean": 3446.0372859631257,
+        "seed_sd": 74.90066192029988
+      },
+      "review_capital": {
+        "mean": 251.75175951457265,
+        "seed_sd": 26.313027381839934
+      },
+      "good_reviews": {
+        "mean": 200.8,
+        "seed_sd": 0.4472135954999579
+      },
+      "bad_reviews": {
+        "mean": 0,
+        "seed_sd": 0.0
+      }
+    },
+    "quality_low_rate_high": {
+      "papers_per_agent": {
+        "mean": 24.330000000000002,
+        "seed_sd": 0.05700877125495662
+      },
+      "reviews_per_agent": {
+        "mean": 24.03,
+        "seed_sd": 0.027386127875258695
+      },
+      "writing_percent": {
+        "mean": 90.219,
+        "seed_sd": 0.018841443681416607
+      },
+      "review_percent": {
+        "mean": 9.781,
+        "seed_sd": 0.018841443681416867
+      },
+      "initial_quality": {
+        "mean": 0.613094951557136,
+        "seed_sd": 0.006516074801214129
+      },
+      "review_quality": {
+        "mean": 0.596750366330345,
+        "seed_sd": 0.008660758900231887
+      },
+      "review_delta": {
+        "mean": 0.25811987464824226,
+        "seed_sd": 0.01234635207338411
+      },
+      "capital": {
+        "mean": 8532.650149589677,
+        "seed_sd": 155.08233312112904
+      },
+      "review_capital": {
+        "mean": 603.2786073650458,
+        "seed_sd": 41.102746140397144
+      },
+      "good_reviews": {
+        "mean": 480.6,
+        "seed_sd": 0.5477225575051661
+      },
+      "bad_reviews": {
+        "mean": 0,
+        "seed_sd": 0.0
+      }
+    },
+    "quality_high_rate_low": {
+      "papers_per_agent": {
+        "mean": 10.16,
+        "seed_sd": 0.06519202405202652
+      },
+      "reviews_per_agent": {
+        "mean": 10.030000000000001,
+        "seed_sd": 0.027386127875258695
+      },
+      "writing_percent": {
+        "mean": 91.059,
+        "seed_sd": 0.06445928947793307
+      },
+      "review_percent": {
+        "mean": 8.941,
+        "seed_sd": 0.06445928947793342
+      },
+      "initial_quality": {
+        "mean": 1.4074489769558696,
+        "seed_sd": 0.012769192999100037
+      },
+      "review_quality": {
+        "mean": 1.399460950445303,
+        "seed_sd": 0.0200834110021308
+      },
+      "review_delta": {
+        "mean": 0.5322701755532017,
+        "seed_sd": 0.01988458342381876
+      },
+      "capital": {
+        "mean": 10231.76166788045,
+        "seed_sd": 168.05012120213647
+      },
+      "review_capital": {
+        "mean": 787.1322816352774,
+        "seed_sd": 29.872884354287756
+      },
+      "good_reviews": {
+        "mean": 200.6,
+        "seed_sd": 0.5477225575051661
+      },
+      "bad_reviews": {
+        "mean": 0,
+        "seed_sd": 0.0
+      }
+    },
+    "quality_high_rate_high": {
+      "papers_per_agent": {
+        "mean": 24.28,
+        "seed_sd": 0.09082951062292487
+      },
+      "reviews_per_agent": {
+        "mean": 24.03,
+        "seed_sd": 0.07582875444051518
+      },
+      "writing_percent": {
+        "mean": 90.187,
+        "seed_sd": 0.025884358211089087
+      },
+      "review_percent": {
+        "mean": 9.813,
+        "seed_sd": 0.025884358211089944
+      },
+      "initial_quality": {
+        "mean": 1.4071282642742156,
+        "seed_sd": 0.005294323519842939
+      },
+      "review_quality": {
+        "mean": 1.4045736488185643,
+        "seed_sd": 0.009958418722311057
+      },
+      "review_delta": {
+        "mean": 0.5755069060165265,
+        "seed_sd": 0.017803503007543516
+      },
+      "capital": {
+        "mean": 25988.32727255794,
+        "seed_sd": 223.9670089233819
+      },
+      "review_capital": {
+        "mean": 2099.257221031731,
+        "seed_sd": 58.99243633985033
+      },
+      "good_reviews": {
+        "mean": 480.6,
+        "seed_sd": 1.51657508881031
+      },
+      "bad_reviews": {
+        "mean": 0,
+        "seed_sd": 0.0
+      }
+    }
+  }
+}

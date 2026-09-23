@@ -96,6 +96,12 @@ class SimConfig:
     # paper's base accrual rate and the accrual bump a review can earn, and it
     # drives the per-reviewer share the author is willing to offer.
     quality_sigma: float = 0.20
+    # Optional shared quality/rate talents, enabled with Agent.configure_talents.
+    talent_rate_sigma: float = 0.20
+    talent_min_rate: float = 0.01
+    talent_low: float = 0.6
+    talent_high: float = 1.4
+    talent_agents_per_group: int = 20
     min_paper_quality: float = 0.10
     quality_price_scale: float = 1.5    # higher quality -> smaller offered share
     history_price_scale: float = 0.5    # better reviewer history -> larger offered share

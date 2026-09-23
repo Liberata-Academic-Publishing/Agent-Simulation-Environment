@@ -107,6 +107,9 @@ class Agent(ABC):
         name: str | None = None,
     ):
         self.intrinsic_talent = intrinsic_talent
+        self.quality_talent = float(intrinsic_talent)
+        self.rate_talent = 1.0
+        self.talent_sampling_enabled = False
         self.academic_capital = academic_capital
         self.paper_progress = paper_progress
         self.review_progress = review_progress
@@ -875,18 +878,45 @@ class Agent(ABC):
         scaled = 1.0 / (1.0 + math.exp(-3.0 * (quality_multiplier(quality) - 1.0)))
         return lo + (hi - lo) * scaled
 
+    def configure_talents(self, quality_talent: float, rate_talent: float) -> None:
+        """Enable shared writing/review talents before starting any work.
+
+        Talents are Gaussian location parameters, not samples themselves.
+        Outcomes are floored to remain positive. Existing strategies inherit
+        this hook, so their constructors need no changes.
+        """
+        quality, rate = float(quality_talent), float(rate_talent)
+        if not all(math.isfinite(x) and x > 0 for x in (quality, rate)):
+            raise ValueError("talents must be finite and positive")
+        if self.paper_progress or self.next_paper_quality is not None or self.active_review_paper is not None:
+            raise ValueError("configure talents before starting work")
+        self.quality_talent = quality
+        self.rate_talent = rate
+        self.intrinsic_talent = quality  # compatibility for strategy estimates
+        self.talent_sampling_enabled = True
+
     def _sample_quality(self) -> float:
-        return quality_multiplier(random.gauss(self.intrinsic_talent, QUALITY_SIGMA))
+        mean = self.quality_talent if self.talent_sampling_enabled else self.intrinsic_talent
+        return quality_multiplier(random.gauss(mean, QUALITY_SIGMA))
+
+    def sample_review_quality(self) -> float:
+        """One independent quality draw per completed review; legacy multiplier 1."""
+        return self._sample_quality() if self.talent_sampling_enabled else 1.0
+
+    def _sample_rate(self) -> float:
+        if not self.talent_sampling_enabled:
+            return 1.0
+        return max(SIM.talent_min_rate, random.gauss(self.rate_talent, SIM.talent_rate_sigma))
 
     def review_effort_delta(self) -> float:
         """Review effort contributed in one timestep."""
-        return REVIEW_EFFORT_PER_TIMESTEP
+        return REVIEW_EFFORT_PER_TIMESTEP * self._sample_rate()
 
     def writing_effort_delta(self) -> float:
         """Writing effort contributed in one timestep."""
         if self.review_paradigm == REVIEW_PARADIGM_DISCRETE:
-            return DISCRETE_WRITING_EFFORT_PER_TIMESTEP
-        return WRITING_EFFORT_PER_TIMESTEP
+            return DISCRETE_WRITING_EFFORT_PER_TIMESTEP * self._sample_rate()
+        return WRITING_EFFORT_PER_TIMESTEP * self._sample_rate()
 
     def paper_completion_threshold(self) -> float:
         if self.continuous_publish_by_threshold():
