@@ -107,6 +107,7 @@ def _listed_paper(author, **kwargs) -> Paper:
 class MarketplaceLifecycleTest(unittest.TestCase):
     def setUp(self):
         Agent.all_papers = []
+        Paper.reset_citation_market()
 
     def test_published_paper_lists_one_timestep_later(self):
         # Continuous mode: the author finishes a paper by choice, not a threshold.
@@ -179,6 +180,7 @@ class MarketplaceLifecycleTest(unittest.TestCase):
 class EconomicsTest(unittest.TestCase):
     def setUp(self):
         Agent.all_papers = []
+        Paper.reset_citation_market()
 
     def test_review_bump_rises_and_saturates_with_sigmoid(self):
         import Paper as paper_mod
@@ -300,6 +302,7 @@ class EconomicsTest(unittest.TestCase):
 class ReviewBumpDecayTest(unittest.TestCase):
     def setUp(self):
         Agent.all_papers = []
+        Paper.reset_citation_market()
         self.decay_sim = replace(
             config.SIM,
             review_bump_duration=REVIEW_BUMP_DECAY,
@@ -344,12 +347,11 @@ class ReviewBumpDecayTest(unittest.TestCase):
         with p1, p2, p3:
             paper.start_review(reviewer, current_timestep=1)
             paper.finish_review(reviewer, effort, current_timestep=1)
-            peak = paper.accrual_rate
-            paper.refresh_accrual_rate(11)
-            later = paper.accrual_rate
+            peak = paper.review_bump_at(1)
+            later = paper.review_bump_at(11)
 
         self.assertGreater(peak, later)
-        self.assertGreater(later, paper.base_accrual_rate)
+        self.assertGreater(later, 0.0)
 
     def test_decay_hard_cap_returns_to_base_rate(self):
         author = ScriptAgent("author")
@@ -362,30 +364,27 @@ class ReviewBumpDecayTest(unittest.TestCase):
         with p1, p2, p3:
             paper.start_review(reviewer, current_timestep=0)
             paper.finish_review(reviewer, effort, current_timestep=0)
-            paper.refresh_accrual_rate(25)
+            bump_after_cap = paper.review_bump_at(25)
 
-        self.assertAlmostEqual(paper.accrual_rate, paper.base_accrual_rate)
+        self.assertEqual(bump_after_cap, 0.0)
 
-    def test_decay_accrual_uses_shrinking_rate(self):
+    def test_decay_shrinks_citation_weight_boost(self):
         author = ScriptAgent("author")
         reviewer = ScriptAgent("reviewer")
         effort = MIN_REVIEW_EFFORT_THRESHOLD + 1.0
         paper = _listed_paper(author, quality=1.0, accrual_rate=1.0, current_ac=0.0)
+        unreviewed = _listed_paper(author, quality=1.0, accrual_rate=1.0)
         paper.update_price_table([reviewer], 1.0, 0.0)
 
         p1, p2, p3 = self._decay_patches()
         with p1, p2, p3:
             paper.start_review(reviewer, current_timestep=10)
             paper.finish_review(reviewer, effort, current_timestep=10)
-            paper.refresh_accrual_rate(10)
-            paper.accrue_ac()
-            first_gain = paper.current_ac
-            paper.refresh_accrual_rate(11)
-            paper.accrue_ac()
-            second_gain = paper.current_ac - first_gain
+            boost_now = paper.citation_log_weight(10) - unreviewed.citation_log_weight(10)
+            boost_later = paper.citation_log_weight(15) - unreviewed.citation_log_weight(15)
 
-        self.assertGreater(first_gain, 0.0)
-        self.assertGreaterEqual(first_gain, second_gain)
+        self.assertGreater(boost_now, boost_later)
+        self.assertGreater(boost_later, 0.0)
 
     def test_review_bump_factor_helpers(self):
         with mock.patch("Paper.SIM", self.decay_sim):
@@ -398,6 +397,7 @@ class ReviewBumpDecayTest(unittest.TestCase):
 class MarketEconomicsTest(unittest.TestCase):
     def setUp(self):
         Agent.all_papers = []
+        Paper.reset_citation_market()
         Agent.all_agents = []
 
     def test_environment_scarcity_multiplier_when_crowded(self):
@@ -596,6 +596,7 @@ class MarketEconomicsTest(unittest.TestCase):
 class ReviewerStateTest(unittest.TestCase):
     def setUp(self):
         Agent.all_papers = []
+        Paper.reset_citation_market()
 
     def test_peer_review_history_updates_on_completion(self):
         author = ScriptAgent("author")
@@ -674,6 +675,7 @@ class ReviewerStateTest(unittest.TestCase):
 class ReviewParadigmTest(unittest.TestCase):
     def setUp(self):
         Agent.all_papers = []
+        Paper.reset_citation_market()
 
     def test_continuous_mode_classifies_finished_reviews_by_threshold(self):
         author = ScriptAgent("author")
@@ -809,6 +811,7 @@ class ReviewParadigmTest(unittest.TestCase):
 class HeuristicPolicyTest(unittest.TestCase):
     def setUp(self):
         Agent.all_papers = []
+        Paper.reset_citation_market()
 
     def test_writes_when_nothing_is_reviewable(self):
         agent = HeuristicAgent(intrinsic_talent=1.0)
@@ -859,6 +862,7 @@ class HeuristicPolicyTest(unittest.TestCase):
 class EnvironmentTest(unittest.TestCase):
     def setUp(self):
         Agent.all_papers = []
+        Paper.reset_citation_market()
 
     def test_work_phase_runs_agents_each_timestep(self):
         log: list[str] = []
@@ -870,7 +874,7 @@ class EnvironmentTest(unittest.TestCase):
         self.assertEqual(sorted(log), ["first", "second"])
         self.assertEqual(env.timestep, 1)
 
-    def test_accrual_and_capital_update_each_timestep(self):
+    def test_capital_tracks_paper_ac_without_passive_accrual(self):
         author = ScriptAgent("author")
         reviewer = ScriptAgent("reviewer")
         paper = Paper(
@@ -883,10 +887,11 @@ class EnvironmentTest(unittest.TestCase):
 
         env.run_timestep()
 
+        # AC only comes from citations, so with no new papers it stays put.
         self.assertEqual(env.timestep, 1)
-        self.assertEqual(paper.current_ac, 12.0)
-        self.assertAlmostEqual(author.academic_capital, 9.0)
-        self.assertAlmostEqual(reviewer.academic_capital, 3.0)
+        self.assertEqual(paper.current_ac, 10.0)
+        self.assertAlmostEqual(author.academic_capital, 7.5)
+        self.assertAlmostEqual(reviewer.academic_capital, 2.5)
 
     def test_history_records_timesteps_and_actions(self):
         author = ScriptAgent("author")
@@ -905,7 +910,7 @@ class EnvironmentTest(unittest.TestCase):
         self.assertEqual(history.timesteps, [1])
         self.assertEqual(history.days, [1])  # backwards-compatible alias
         self.assertEqual(len(history.actions), 2)
-        self.assertAlmostEqual(history.agent_capital["author"][0], 9.0)
+        self.assertAlmostEqual(history.agent_capital["author"][0], 7.5)
         self.assertEqual(history.scalars["num_papers"][0], 1.0)
 
     def test_history_records_publication_and_time_allocation_metrics(self):
@@ -1060,6 +1065,7 @@ class EnvironmentTest(unittest.TestCase):
 class ContinuousAccrualTest(unittest.TestCase):
     def setUp(self):
         Agent.all_papers = []
+        Paper.reset_citation_market()
 
     def test_accrual_rate_rises_and_saturates_with_effort(self):
         ceiling = accrual_rate_from_quality(1.0)
@@ -1086,6 +1092,7 @@ class ContinuousAccrualTest(unittest.TestCase):
 class ContinuousMergedPhaseTest(unittest.TestCase):
     def setUp(self):
         Agent.all_papers = []
+        Paper.reset_citation_market()
 
     def _listed(self, author, **kwargs):
         paper = _listed_paper(author, **kwargs)
@@ -1190,6 +1197,7 @@ class ContinuousMergedPhaseTest(unittest.TestCase):
 class ContinuousThresholdPublishingTest(unittest.TestCase):
     def setUp(self):
         Agent.all_papers = []
+        Paper.reset_citation_market()
 
     def test_auto_publishes_when_writing_effort_reaches_threshold(self):
         agent = ScriptAgent("author")
@@ -1222,6 +1230,7 @@ class ContinuousThresholdPublishingTest(unittest.TestCase):
 class DiscreteQLearningAgentTest(unittest.TestCase):
     def setUp(self):
         Agent.all_papers = []
+        Paper.reset_citation_market()
         Agent.all_agents = []
 
     def test_choose_review_kind_uses_q_pending_kind(self):

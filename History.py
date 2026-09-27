@@ -417,6 +417,19 @@ def default_metrics() -> dict[str, MetricFn]:
         # review (reviewer shares). Sums to ``total_capital``.
         "writing_held_ac": lambda env: _ac_by_source(env)["writing_held_ac"],
         "review_held_ac": lambda env: _ac_by_source(env)["review_held_ac"],
+        # Citation network (see ``Paper.generate_citations``); zero when
+        # ``citations_enabled`` is off.
+        "total_citations": lambda env: float(
+            sum(getattr(p, "citation_count", 0) for p in env.papers)
+        ),
+        "mean_citation_count": lambda env: (
+            sum(getattr(p, "citation_count", 0) for p in env.papers) / len(env.papers)
+            if env.papers
+            else 0.0
+        ),
+        "total_citation_ac": lambda env: float(
+            sum(getattr(p, "citation_accrued", 0.0) for p in env.papers)
+        ),
     }
 
 
