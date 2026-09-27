@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import random
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -43,6 +44,18 @@ WRITING_SATURATION = SIM.writing_saturation
 PRICING_POLICY = SIM.pricing_policy
 FORECAST_HORIZON_TIMESTEPS = SIM.forecast_horizon_timesteps
 REVIEWER_SURPLUS_SHARE = SIM.reviewer_surplus_share
+CITATION_REFERENCE_COUNT = SIM.citation_reference_count
+CITATION_REFERENCE_COUNT_DISTRIBUTION = SIM.citation_reference_count_distribution
+CITATION_QUALITY_WEIGHT = SIM.citation_quality_weight
+CITATION_AGE_DECAY_RATIO = SIM.citation_age_decay_ratio
+CITATION_AC_PER_NEW_PAPER = SIM.citation_ac_per_new_paper
+
+CITATION_REFERENCE_COUNT_FIXED = "fixed"
+CITATION_REFERENCE_COUNT_POISSON = "poisson"
+VALID_CITATION_REFERENCE_COUNT_DISTRIBUTIONS = frozenset({
+    CITATION_REFERENCE_COUNT_FIXED,
+    CITATION_REFERENCE_COUNT_POISSON,
+})
 
 REVIEW_BUMP_PERMANENT = "permanent"
 REVIEW_BUMP_DECAY = "decay"
@@ -117,6 +130,47 @@ def reputation_bin_name(
             return name_values[index]
     return name_values[-1]
 
+def validate_citation_reference_count_distribution(mode: str) -> str:
+    value = str(mode).strip().lower()
+    if value not in VALID_CITATION_REFERENCE_COUNT_DISTRIBUTIONS:
+        allowed = ", ".join(sorted(VALID_CITATION_REFERENCE_COUNT_DISTRIBUTIONS))
+        raise ValueError(
+            f"citation_reference_count_distribution must be one of: {allowed}"
+        )
+    return value
+
+
+def _sample_poisson(mean: float, rng: random.Random) -> int:
+    """Poisson-distributed sample with the given mean (Knuth's algorithm, stdlib-only)."""
+    threshold = math.exp(-max(0.0, float(mean)))
+    count = 0
+    product = 1.0
+    while True:
+        product *= rng.random()
+        if product <= threshold:
+            return count
+        count += 1
+
+
+def sample_citation_reference_count(
+    mean: float,
+    distribution: str = CITATION_REFERENCE_COUNT_DISTRIBUTION,
+    rng: random.Random | None = None,
+) -> int:
+    """Resolve one paper's reference count from the configured distribution.
+
+    ``"fixed"`` always returns ``round(mean)`` (today's behavior — every paper
+    cites the same number of prior papers). ``"poisson"`` draws from
+    Poisson(mean) independently per paper, so individual papers vary while the
+    *average* reference count across papers still equals ``mean``.
+    """
+    mode = validate_citation_reference_count_distribution(distribution)
+    chooser = rng if rng is not None else random
+    if mode == CITATION_REFERENCE_COUNT_POISSON:
+        return _sample_poisson(mean, chooser)
+    return max(0, round(float(mean)))
+
+
 def validate_review_paradigm(paradigm: str) -> str:
     value = str(paradigm).strip().lower()
     if value not in VALID_REVIEW_PARADIGMS:
@@ -177,8 +231,16 @@ def quality_multiplier(quality: float) -> float:
 
 
 def accrual_rate_from_quality(quality: float) -> float:
-    """Base AC accrual rate implied by a paper's quality (the asymptotic ceiling)."""
-    return DEFAULT_ACCRUAL_RATE * quality_multiplier(quality)
+    """Expected citation AC per timestep for a fresh, unreviewed paper of ``quality``.
+
+    AC is only earned through citations, so this is a forecast, not a source of
+    AC: the paper's citation weight ``exp(quality_weight * quality)`` times the
+    market-wide citation income per unit weight (``Paper.citation_income_per_weight``,
+    refreshed by the environment each timestep).
+    """
+    return Paper.citation_income_per_weight * math.exp(
+        Paper.citation_quality_weight * quality_multiplier(quality)
+    )
 
 
 def accrual_rate_from_effort(quality: float, writing_effort: float) -> float:
@@ -378,6 +440,108 @@ def forecast_decayed_accrual_gain(
     return total + base * bump_integral(cap_value)
 
 
+def _weighted_sample_without_replacement(
+    items: list["Paper"],
+    weights: list[float],
+    k: int,
+    rng: random.Random,
+) -> list["Paper"]:
+    """Draw ``k`` distinct items without replacement, weighted by ``weights``.
+
+    Sequentially draws one item at a time and renormalizes the remaining
+    weights on each draw. This is the standard substitute for
+    ``numpy``'s weighted choice without replacement.
+    """
+    pool = list(zip(items, weights))
+    selected: list["Paper"] = []
+    for _ in range(k):
+        total = sum(weight for _, weight in pool) # add up all weights
+        if total <= 0.0:
+            index = rng.randrange(len(pool))
+            print("All 0 weights")
+        else:
+            target = rng.uniform(0.0, total) # choose a random number from 0 to that total
+            running = 0.0
+            index = len(pool) - 1
+            for i, (_, weight) in enumerate(pool): #walk through the papers and add each weight until target
+                running += weight
+                if running >= target:
+                    index = i
+                    break
+        selected.append(pool.pop(index)[0]) # add paper and remove from pool
+    return selected
+
+
+def generate_citations(
+    new_paper: "Paper",
+    prior_papers: list["Paper"],
+    current_timestep: int,
+    reference_count: float = CITATION_REFERENCE_COUNT,
+    quality_weight: float = CITATION_QUALITY_WEIGHT,
+    age_decay_ratio: float = CITATION_AGE_DECAY_RATIO,
+    ac_per_new_paper: float = CITATION_AC_PER_NEW_PAPER,
+    reference_count_distribution: str = CITATION_REFERENCE_COUNT_DISTRIBUTION,
+    rng: random.Random | None = None,
+) -> list["Paper"]:
+    """Sample outgoing citations for a newly published paper.
+
+    Citation targets are drawn without replacement from ``prior_papers``
+    (self-citation and citing ``new_paper`` itself are excluded by construction
+    — callers pass only strictly-earlier papers). Selection uses numerically
+    stable softmax probabilities over
+    ``quality_weight * quality + ln(age_decay_ratio) * (current_timestep - publish_timestep)``,
+    i.e. weights proportional to ``exp(quality_weight * quality) * r**age`` with
+    ``r = age_decay_ratio`` in ``(0, 1]``. Each timestep of age multiplies a
+    paper's weight by ``r`` (geometric decay, no plateau), so higher-quality and
+    more recent papers are favored. A completed peer review multiplies the
+    reviewed paper's weight by ``1 + epsilon`` (see ``Paper.citation_log_weight``).
+
+    ``reference_count`` is this paper's reference count under
+    ``"fixed"`` distribution, or the *average* reference count under
+    ``"poisson"`` (see ``sample_citation_reference_count``) — either way the
+    sampled count is capped at ``min(count, len(prior_papers))``, which keeps
+    citations per paper bounded regardless of corpus size.
+
+    Each selected paper's ``citation_count`` is incremented and receives an
+    equal split of ``ac_per_new_paper`` AC. Citations are the only source of
+    AC: the split is added to ``current_ac`` (which shareholders own) and also
+    logged in ``citation_accrued``. Marks
+    ``new_paper.citations_generated`` so it is only ever processed once.
+    """
+    if not 0.0 < age_decay_ratio <= 1.0:
+        raise ValueError("age_decay_ratio must be in (0, 1]")
+    chooser = rng if rng is not None else random
+    sampled_count = sample_citation_reference_count(
+        reference_count, reference_count_distribution, chooser
+    )
+    k = min(max(0, sampled_count), len(prior_papers))
+    new_paper.citations_generated = True
+    if k <= 0:
+        new_paper.references = []
+        return [] 
+    
+    log_ratio = math.log(age_decay_ratio) # log space: r**age never underflows
+
+    scores = [ #calculate every older paper's citation score
+        paper.citation_log_weight(current_timestep, quality_weight, log_ratio)
+        for paper in prior_papers
+    ]
+    max_score = max(scores)
+    weights = [math.exp(value - max_score) for value in scores] # preserves same softmax probabilities
+
+    selected = _weighted_sample_without_replacement( #randomly select k distinct older papers
+        list(prior_papers), weights, k, chooser
+    )
+
+    ac_each = ac_per_new_paper / k 
+    for cited in selected:
+        cited.citation_count += 1
+        cited.citation_accrued += ac_each # distribute ac
+        cited.current_ac += ac_each
+    new_paper.references = list(selected)
+    return selected
+
+
 class Paper:
     """A paper in the single-review marketplace.
 
@@ -386,7 +550,34 @@ class Paper:
     offers each potential reviewer a distinct share price (``price_table``). The
     first agent to claim it takes it permanently off the market; the paper can be
     reviewed exactly once.
+
+    AC is earned only through citations. ``accrual_rate`` is a forecast of the
+    citation AC this paper is expected to earn per timestep, refreshed by the
+    environment from the citation network; it is used for pricing and agent
+    decisions but never adds AC by itself.
     """
+
+    # Citation market state shared by all papers; ``Environment`` refreshes it
+    # each timestep. The default income per weight calibrates a quality-1.0
+    # paper to ``DEFAULT_ACCRUAL_RATE`` before any environment has run.
+    citation_quality_weight: float = CITATION_QUALITY_WEIGHT
+    citation_log_decay_ratio: float = math.log(CITATION_AGE_DECAY_RATIO)
+    citation_income_per_weight: float = DEFAULT_ACCRUAL_RATE * math.exp(
+        -CITATION_QUALITY_WEIGHT
+    )
+    # Mean ``accrual_rate`` across the corpus; reputation is measured relative
+    # to it so reputation bins keep their scale as the corpus grows.
+    mean_accrual_rate: float = DEFAULT_ACCRUAL_RATE
+
+    @classmethod
+    def reset_citation_market(cls) -> None:
+        """Restore the default citation market state (e.g. between tests)."""
+        cls.citation_quality_weight = CITATION_QUALITY_WEIGHT
+        cls.citation_log_decay_ratio = math.log(CITATION_AGE_DECAY_RATIO)
+        cls.citation_income_per_weight = DEFAULT_ACCRUAL_RATE * math.exp(
+            -CITATION_QUALITY_WEIGHT
+        )
+        cls.mean_accrual_rate = DEFAULT_ACCRUAL_RATE
 
     def __init__(
         self,
@@ -400,12 +591,14 @@ class Paper:
         max_reviewer_share: float | None = None,
         writing_effort: float | None = None,
         required_writing_effort: float | None = None,
+        publish_timestep: int | None = None,
     ):
         if author is None:
             raise ValueError("author cannot be None")
 
         self.author = author
         self.quality = quality_multiplier(quality)
+        self.paper_quality = self.quality # add paper_quality
         self.writing_effort = (
             None if writing_effort is None else max(0.0, float(writing_effort))
         )
@@ -414,10 +607,21 @@ class Paper:
             if required_writing_effort is None
             else max(0.0, float(required_writing_effort))
         )
+        # Timestep this paper was published at; unset (e.g. seeded initial
+        # papers) is treated as pre-existing corpus at t=0.
+        self.publish_timestep = (
+            0 if publish_timestep is None else int(publish_timestep)
+        )
+        # Continuous mode: writing effort sets how close the paper gets to its
+        # quality-defined citation weight (1.0 = full weight).
+        self.writing_completeness = (
+            1.0
+            if self.writing_effort is None
+            else 1.0 - math.exp(-WRITING_SATURATION * self.writing_effort)
+        )
         if accrual_rate is not None:
             rate = accrual_rate
         elif self.writing_effort is not None:
-            # Continuous mode: writing effort sets how close to the ceiling we get.
             rate = accrual_rate_from_effort(self.quality, self.writing_effort)
         else:
             # Discrete / back-compat: full quality-defined rate.
@@ -453,7 +657,16 @@ class Paper:
         self.claimed_timestep: int | None = None
         self.time_on_market_timesteps: int | None = None
 
-        # Decaying review bump state (used when ``review_bump_duration == decay``).
+        # Citation network (see ``generate_citations``). ``references`` lists
+        # the papers this paper cites; ``citation_count``/``citation_accrued``
+        # track incoming citations and the AC they granted (also added to
+        # ``current_ac``, since citations are the only source of AC).
+        self.references: list["Paper"] = []
+        self.citation_count: int = 0
+        self.citation_accrued: float = 0.0
+        self.citations_generated: bool = False
+
+        # Review bump on citation weight (decays when ``review_bump_duration == decay``).
         self.base_accrual_rate: float | None = None
         self.review_bump_epsilon: float = 0.0
         self.review_completed_timestep: int | None = None
@@ -651,15 +864,14 @@ class Paper:
                 self.share_distribution[agent] = (
                     self.share_distribution.get(agent, 0.0) + share
                 )
-            if validate_review_bump_duration(SIM.review_bump_duration) == REVIEW_BUMP_DECAY:
-                self.base_accrual_rate = self.accrual_rate
-                self.review_bump_epsilon = epsilon
-                self.review_completed_timestep = (
-                    int(current_timestep) if current_timestep is not None else None
-                )
-                self.refresh_accrual_rate(current_timestep)
-            else:
-                self.accrual_rate = self.estimate_accrual_rate_after_review(review_effort)
+            # The review multiplies this paper's citation weight by
+            # ``1 + epsilon``; the forecast rate moves with it right away.
+            self.base_accrual_rate = self.accrual_rate
+            self.review_bump_epsilon = epsilon
+            self.review_completed_timestep = (
+                int(current_timestep) if current_timestep is not None else None
+            )
+            self.accrual_rate = self.accrual_rate * (1.0 + epsilon)
         self.review_records.append(
             {
                 "reviewer": agent,
@@ -714,23 +926,39 @@ class Paper:
     def estimate_accrual_rate_after_review(self, effort: float) -> float:
         return self.accrual_rate * (1.0 + review_accrual_bump(effort, self.quality))
 
-    def refresh_accrual_rate(self, current_timestep: int | None = None) -> None:
-        """Update ``accrual_rate`` when the review bump decays over time."""
-        if validate_review_bump_duration(SIM.review_bump_duration) != REVIEW_BUMP_DECAY:
-            return
-        if not self.reviewed or self.base_accrual_rate is None:
-            return
+    # ---- citation weight ----------------------------------------------
+    def review_bump_at(self, current_timestep: int | None = None) -> float:
+        """Remaining review bump epsilon on this paper's citation weight."""
+        if not self.reviewed or self.review_bump_epsilon <= 0.0:
+            return 0.0
         if self.review_completed_timestep is None or current_timestep is None:
-            bump_factor = review_bump_factor_at_age(self.review_bump_epsilon, 0.0)
+            age = 0
         else:
             age = max(0, int(current_timestep) - int(self.review_completed_timestep))
-            bump_factor = review_bump_factor_at_age(self.review_bump_epsilon, age)
-        self.accrual_rate = self._nonnegative_float(
-            self.base_accrual_rate * (1.0 + bump_factor),
-            "accrual_rate",
-        )
+        return review_bump_factor_at_age(self.review_bump_epsilon, age)
 
-    # ---- shares / accrual ----------------------------------------------
+    def citation_log_weight(
+        self,
+        current_timestep: int,
+        quality_weight: float | None = None,
+        log_decay_ratio: float | None = None,
+    ) -> float:
+        """Log citation weight: ``quality_weight * quality + ln(r) * age``,
+        plus ``ln(writing_completeness)`` and ``ln(1 + review bump)``.
+
+        A peer review therefore acts like a quality boost for citations: it
+        multiplies the paper's chance of being cited by ``1 + epsilon``.
+        """
+        if quality_weight is None:
+            quality_weight = Paper.citation_quality_weight
+        if log_decay_ratio is None:
+            log_decay_ratio = Paper.citation_log_decay_ratio
+        age = max(0, int(current_timestep) - self.publish_timestep)
+        value = quality_weight * self.quality + log_decay_ratio * age
+        value += math.log(max(self.writing_completeness, 1e-12))
+        return value + math.log1p(self.review_bump_at(current_timestep))
+
+    # ---- shares ---------------------------------------------------------
     def set_share(self, agent: Agent, share: float):
         if agent is None:
             raise ValueError("agent cannot be None")
@@ -745,15 +973,6 @@ class Paper:
             raise ValueError("total paper shares cannot exceed 1.0")
 
         self.share_distribution[agent] = share_value
-
-    def advance_accrual(self, time_steps: int = 1):
-        self.accrue_ac(time_steps)
-
-    def accrue_ac(self, time_steps: float = 1.0) -> float:
-        """Increase current AC using the current provisional accrual rate."""
-        elapsed = self._nonnegative_float(time_steps, "time_steps")
-        self.current_ac += self.accrual_rate * elapsed
-        return self.current_ac
 
     # ---- validation helpers --------------------------------------------
     def _validate_share_distribution(self):

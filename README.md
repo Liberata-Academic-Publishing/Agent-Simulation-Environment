@@ -4,7 +4,7 @@ Academic research project: an agent-based simulation of incentive structures, ma
 
 ## Single-review marketplace
 
-Each paper has a `quality` sampled from a Gaussian centered on its author's intrinsic talent, known to the author before they start writing. Quality sets the paper's base accrual rate and the accrual bump a review can earn. A paper is listed on the market one timestep after it is published, and it can be reviewed exactly once. With value-based matching enabled, the market awards it to the eligible reviewer with the highest expected claim value. If disabled, the first eligible agent to claim it receives the review.
+Each paper has a `quality` sampled from a Gaussian centered on its author's intrinsic talent, known to the author before they start writing. Quality sets the paper's base accrual rate and the accrual bump a review can earn. A paper is listed on the market one timestep after it is written, and it can be reviewed exactly once. With value-based matching enabled, the market awards it to the eligible reviewer with the highest expected claim value. If disabled, the first eligible agent to claim it receives the review.
 
 While a paper is listed, its author offers each potential reviewer a distinct share price (`Paper.price_table`). The default base offer splits incremental review surplus fairly: `ε/(1+ε) × (F−A₀)/F × reviewer_surplus_share` (default 50/50), using each reviewer's epsilon history and the same forecast horizon agents use for claim decisions. A higher-quality paper (relative to the market) offers a smaller share; scarcity and adaptive author multipliers can adjust offers further. The price table refreshes every timestep because it depends on which papers are currently on the market.
 

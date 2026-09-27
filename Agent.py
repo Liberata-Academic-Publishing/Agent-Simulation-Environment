@@ -172,7 +172,8 @@ class Agent(ABC):
         self.next_paper_quality: float | None = None
         self.next_paper_required_effort: float | None = None
 
-        # Public peer-review reputation: mean share-weighted accrual rate per review.
+        # Public peer-review reputation: mean share-weighted accrual rate per
+        # review, relative to the average paper's rate at review time.
         self.peer_review_history: float = 0.0
         self.total_accrual_rate_from_reviews: float = 0.0
         self.peer_review_epsilon_history: float = SIM.prior_review_epsilon
@@ -748,7 +749,9 @@ class Agent(ABC):
     ) -> None:
         """Update public peer-review reputation and epsilon history on completion."""
         self.completed_review_count += 1
-        self.total_accrual_rate_from_reviews += share * paper.accrual_rate
+        mean_rate = Paper.mean_accrual_rate
+        relative_rate = paper.accrual_rate / mean_rate if mean_rate > 0.0 else 0.0
+        self.total_accrual_rate_from_reviews += share * relative_rate
         self.peer_review_history = (
             self.total_accrual_rate_from_reviews / self.completed_review_count
         )
@@ -784,6 +787,7 @@ class Agent(ABC):
             quality=self.next_paper_quality or self._sample_quality(),
             writing_effort=self.paper_progress,
             required_writing_effort=self.next_paper_required_effort,
+            publish_timestep=self.current_timestep,
         )
         Agent.all_papers.append(paper)
         self._reset_next_paper_state()
@@ -822,6 +826,7 @@ class Agent(ABC):
             quality=self.next_paper_quality or self._sample_quality(),
             writing_effort=self.paper_progress,
             required_writing_effort=self.next_paper_required_effort,
+            publish_timestep=self.current_timestep,
         )
         Agent.all_papers.append(paper)
         self._reset_next_paper_state()

@@ -48,7 +48,7 @@ class SimConfig:
     init_accrual_max: float = 1.5
 
     # --- Paper economics -------------------------------------------------
-    default_accrual_rate: float = 1.0       # base AC gained per timestep, before bumps
+    default_accrual_rate: float = 1.0       # forecast calibration before any environment runs
     default_review_share: float = 0.005      # legacy fallback when fair-market pricing is off
     default_max_reviewer_share: float = 1.0        # max share per review (100% of author stake)
     min_offer_share: float = 0.0001          # floor on review offers (0%)
@@ -96,6 +96,30 @@ class SimConfig:
     min_paper_quality: float = 0.10
     quality_price_scale: float = 1.5    # higher quality -> smaller offered share
     history_price_scale: float = 0.5    # better reviewer history -> larger offered share
+
+    # --- Citation network --------------------------------------------------
+    # Each newly published paper cites a bounded, softmax-weighted sample of
+    # earlier eligible papers (favoring higher quality and more recent work),
+    # so the number of citations per paper does not grow with the corpus.
+    # Citations are the ONLY source of AC: each cited paper's ``current_ac``
+    # grows by its split of ``citation_ac_per_new_paper``, and a completed peer
+    # review multiplies the paper's citation weight by ``1 + epsilon``.
+    # Disabling citations means no AC is ever created.
+    citations_enabled: bool = True
+    citation_reference_count: float = 20.0
+    # "fixed": every paper cites exactly round(citation_reference_count) prior
+    # papers. "poisson": each paper's reference count is drawn from
+    # Poisson(citation_reference_count), so individual papers vary while the
+    # average across papers still equals citation_reference_count.
+    citation_reference_count_distribution: str = "fixed"  # "fixed" | "poisson"
+    citation_quality_weight: float = 1.0
+    # Per-timestep (per-day) geometric decay of citation weight: weight ∝ r^age.
+    # Lifetime weight sums to 1/(1-r); half-life = ln(0.5)/ln(r) days.
+    citation_age_decay_ratio: float = 0.998 # currently a year
+    citation_ac_per_new_paper: float = 1.0
+    # EMA weight for the citation AC handed out per timestep, which scales each
+    # paper's ``accrual_rate`` forecast (expected citation AC per timestep).
+    citation_income_smoothing: float = 0.01
 
     # --- Effort & reward model -------------------------------------------
     review_paradigm: str = "continuous"       # "continuous" | "discrete"
@@ -163,9 +187,14 @@ class SimConfig:
     rl_backend: str = "tabular"     # "tabular" | "linear"
     rl_epsilon: float = 0.1         # exploration when learning online
     rl_gamma: float = 0.95          # TD discount
-    rl_reward_ac_weight: float = 0.0      # weight on Δ academic capital
-    rl_reward_rank_weight: float = 100.0   # weight on Δ AC percentile rank (0..1)
-    rl_reward_accrual_weight: float = 1.0  # weight on Δ portfolio accrual rate
+    # Reward = Δ citation AC (AC only comes from citations) plus a shaping
+    # term on Δ expected citation AC per timestep. Citations arrive long after
+    # a paper is written or reviewed, so the shaping term (weighted by
+    # ~1/(1 - rl_gamma)) credits actions with the discounted citation AC they
+    # are expected to bring. Set it to 0 for a pure realized-AC reward.
+    rl_reward_ac_weight: float = 1.0      # weight on Δ academic capital (citation AC)
+    rl_reward_rank_weight: float = 0.0     # weight on Δ AC percentile rank (0..1)
+    rl_reward_accrual_weight: float = 20.0  # weight on Δ expected citation AC per timestep
     rl_autoload_policy: bool = True  # auto-load the saved baseline for RL agents
     rl_low_talent_autoload_policy: bool = True  # auto-load low-talent RL policy
     talent_min: float = 0.6         # default talent spread; CLI can widen/narrow it
@@ -202,7 +231,7 @@ class TrainConfig:
     num_heuristic: int = 0
     eps_start: float = 1.0
     eps_end: float = 0.05
-    low_talent: bool = True
+    low_talent: bool = False
     low_talent_value: float = 0.3
 
 
