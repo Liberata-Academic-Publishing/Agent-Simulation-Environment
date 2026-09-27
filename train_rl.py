@@ -57,7 +57,7 @@ def open_chart(path: str) -> None:
 
 
 def seed_initial_papers(agents: list[Agent], rng: random.Random) -> None:
-    """Seed starting papers per SimConfig (listed on the market from timestep 1)."""
+    """Seed a small bootstrap supply, released gradually into the market."""
     index = 0
     for agent in agents:
         for _ in range(SIM.init_papers_per_agent):
@@ -66,8 +66,10 @@ def seed_initial_papers(agents: list[Agent], rng: random.Random) -> None:
                 author=agent,
                 quality=agent.intrinsic_talent,
                 current_ac=rng.uniform(SIM.init_ac_min, SIM.init_ac_max),
-                market_listed=True,
+                market_listed=False,
             )
+            stagger = max(1, int(SIM.initial_listing_stagger_timesteps))
+            paper.scheduled_listing_timestep = 1 + ((index - 1) % stagger)
             paper.title = f"Paper {index}"
             Agent.all_papers.append(paper)
 

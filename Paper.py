@@ -597,8 +597,7 @@ class Paper:
             raise ValueError("author cannot be None")
 
         self.author = author
-        self.quality = quality_multiplier(quality)
-        self.paper_quality = self.quality # add paper_quality
+        self.paper_quality = quality_multiplier(quality)
         self.writing_effort = (
             None if writing_effort is None else max(0.0, float(writing_effort))
         )
@@ -672,6 +671,15 @@ class Paper:
         self.review_completed_timestep: int | None = None
 
     # ---- compatibility aliases ------------------------------------------
+    @property
+    def quality(self) -> float:
+        """Legacy name for the single stored paper quality."""
+        return self.paper_quality
+
+    @quality.setter
+    def quality(self, value: float) -> None:
+        self.paper_quality = quality_multiplier(value)
+
     @property
     def ac_accrual_rate(self) -> float:
         return self.accrual_rate
@@ -851,7 +859,9 @@ class Paper:
         self.reviewer = agent
 
         share = 0.0
-        epsilon = review_epsilon_from_effort(review_effort, self.quality)
+        review_quality = agent.sample_review_quality()
+        epsilon = review_epsilon_from_effort(review_effort, self.quality) * review_quality
+        quality_delta = 0.0
         if review_effort >= MIN_REVIEW_EFFORT_THRESHOLD:
             share = min(
                 self.agreed_review_share,
@@ -864,20 +874,26 @@ class Paper:
                 self.share_distribution[agent] = (
                     self.share_distribution.get(agent, 0.0) + share
                 )
-            # The review multiplies this paper's citation weight by
-            # ``1 + epsilon``; the forecast rate moves with it right away.
-            self.base_accrual_rate = self.accrual_rate
-            self.review_bump_epsilon = epsilon
-            self.review_completed_timestep = (
-                int(current_timestep) if current_timestep is not None else None
-            )
-            self.accrual_rate = self.accrual_rate * (1.0 + epsilon)
+            if validate_review_bump_duration(SIM.review_bump_duration) == REVIEW_BUMP_DECAY:
+                self.base_accrual_rate = self.accrual_rate
+                self.review_bump_epsilon = epsilon
+                self.review_completed_timestep = (
+                    int(current_timestep) if current_timestep is not None else None
+                )
+                self.refresh_accrual_rate(current_timestep)
+            else:
+                self.accrual_rate *= 1.0 + epsilon
+            if agent.talent_sampling_enabled:
+                quality_delta = self.paper_quality * epsilon
+                self.paper_quality += quality_delta
         self.review_records.append(
             {
                 "reviewer": agent,
                 "share": share,
                 "effort": review_effort,
                 "epsilon": epsilon,
+                "review_quality": review_quality,
+                "review_quality_delta": quality_delta,
                 "review_kind": completed_review_kind,
                 "accrual_rate": self.accrual_rate,
                 # Paper AC at the instant the review finished, before any
