@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import math
 import random
 from collections.abc import Callable, Sequence
 from statistics import median
@@ -10,12 +11,12 @@ from Agent import Agent, validate_continuous_publishing
 from config import SIM
 from Paper import (
     REVIEW_PARADIGM_DISCRETE,
-    REVIEW_BUMP_DECAY,
     PRICING_POLICY_ADAPTIVE,
     Paper,
     fair_market_price_from_epsilons,
+    generate_citations,
+    validate_citation_reference_count_distribution,
     validate_pricing_policy,
-    validate_review_bump_duration,
     validate_review_paradigm,
 )
 
@@ -66,6 +67,13 @@ class Environment:
         adaptive_lower_bins: tuple[str, ...] = SIM.adaptive_lower_bins,
         adaptive_slow_raise_bins: tuple[str, ...] = SIM.adaptive_slow_raise_bins,
         fast_claim_max_wait: float | None = SIM.fast_claim_max_wait,
+        citations_enabled: bool = SIM.citations_enabled,
+        citation_reference_count: int = SIM.citation_reference_count,
+        citation_reference_count_distribution: str = SIM.citation_reference_count_distribution,
+        citation_quality_weight: float = SIM.citation_quality_weight,
+        citation_age_decay_ratio: float = SIM.citation_age_decay_ratio,
+        citation_ac_per_new_paper: float = SIM.citation_ac_per_new_paper,
+        citation_income_smoothing: float = SIM.citation_income_smoothing,
         history: "History | None" = None,
     ):
         if agents is not None and num_agents is not None:
@@ -99,6 +107,17 @@ class Environment:
         self.adaptive_lower_bins = adaptive_lower_bins
         self.adaptive_slow_raise_bins = adaptive_slow_raise_bins
         self.fast_claim_max_wait = fast_claim_max_wait
+        self.citations_enabled = bool(citations_enabled)
+        self.citation_reference_count = float(citation_reference_count)
+        self.citation_reference_count_distribution = (
+            validate_citation_reference_count_distribution(
+                citation_reference_count_distribution
+            )
+        )
+        self.citation_quality_weight = float(citation_quality_weight)
+        self.citation_age_decay_ratio = float(citation_age_decay_ratio)
+        self.citation_ac_per_new_paper = float(citation_ac_per_new_paper)
+        self.citation_income_smoothing = float(citation_income_smoothing)
         self.history = history
         self.timestep = 0
         self.fair_market_price = fair_market_price_from_epsilons(
@@ -121,12 +140,21 @@ class Environment:
         Agent.all_papers = self.papers
         Agent.all_agents = self.agents
         self._configure_agents()
+        # Smoothed citation AC handed out per timestep. Prior: every agent
+        # publishes one paper per expected paper-effort target.
+        self.citation_income_per_timestep = (
+            len(self.agents)
+            * self.citation_ac_per_new_paper
+            / max(1.0, self._expected_paper_effort())
+        )
+        self._update_citation_forecasts()
 
     # ---- main loop -------------------------------------------------------
     def run_timestep(self):
         """Advance the simulation by one full timestep."""
         self.timestep += 1
         self._sync_papers()
+        self._update_citation_forecasts()
         self._list_scheduled_papers()
         self._update_market_prices()
         self._clear_review_market()
@@ -140,12 +168,13 @@ class Environment:
             self._continuous_phase(order)
 
         self._sync_papers()
+        distributed = self._process_citations()
+        self.citation_income_per_timestep += self.citation_income_smoothing * (
+            distributed - self.citation_income_per_timestep
+        )
         self._schedule_new_papers()
 
-        for paper in self.papers:
-            if validate_review_bump_duration(SIM.review_bump_duration) == REVIEW_BUMP_DECAY:
-                paper.refresh_accrual_rate(self.timestep)
-            paper.accrue_ac()
+        # AC comes only from citations (credited in ``_process_citations``).
         self.update_agent_capital()
 
         if self.history is not None:
@@ -331,6 +360,75 @@ class Environment:
             ):
                 paper.list_on_market(self.timestep)
                 paper.scheduled_listing_timestep = None
+
+    def _process_citations(self) -> None:
+        """Generate outgoing citations for every not-yet-processed paper.
+
+        Eligible targets are papers published strictly before the citing
+        paper (``publish_timestep`` ordering), so this is independent of
+        ``self.papers`` iteration order and never allows self-citation or
+        citing the paper currently being processed.
+
+        Returns the total AC handed out to cited papers this timestep.
+
+        **** potentially wasteful because we loop through all the papers each time step
+        """
+        if not self.citations_enabled:
+            return 0.0
+        distributed = 0.0
+        for paper in list(self.papers):
+            if paper.citations_generated:
+                continue
+            eligible = [
+                other
+                for other in self.papers
+                if other.publish_timestep < paper.publish_timestep
+            ]
+            cited = generate_citations(
+                paper,
+                eligible,
+                paper.publish_timestep,
+                reference_count=self.citation_reference_count,
+                quality_weight=self.citation_quality_weight,
+                age_decay_ratio=self.citation_age_decay_ratio,
+                ac_per_new_paper=self.citation_ac_per_new_paper,
+                reference_count_distribution=self.citation_reference_count_distribution,
+            )
+            if cited:
+                distributed += self.citation_ac_per_new_paper
+        return distributed
+
+    def _update_citation_forecasts(self) -> None:
+        """Refresh every paper's ``accrual_rate`` forecast from the citation network.
+
+        A paper's expected citation AC per timestep is the smoothed AC handed
+        out per timestep times its share of total citation weight. Also stores
+        income per unit weight on ``Paper`` so forecasts for not-yet-written
+        papers (``accrual_rate_from_quality``) use the same scale.
+        """
+        log_decay = math.log(self.citation_age_decay_ratio)
+        Paper.citation_quality_weight = self.citation_quality_weight
+        Paper.citation_log_decay_ratio = log_decay
+        if not self.papers:
+            return
+        log_weights = [
+            paper.citation_log_weight(self.timestep, self.citation_quality_weight, log_decay)
+            for paper in self.papers
+        ]
+        top = max(log_weights)
+        log_total = top + math.log(sum(math.exp(value - top) for value in log_weights))
+        income = max(0.0, self.citation_income_per_timestep)
+        Paper.citation_income_per_weight = income * math.exp(-log_total)
+        Paper.mean_accrual_rate = income / len(self.papers)
+        for paper, value in zip(self.papers, log_weights):
+            paper.accrual_rate = income * math.exp(value - log_total)
+
+    def _expected_paper_effort(self) -> float:
+        if self.paper_effort_mode != "fixed":
+            return (self.paper_effort_min + self.paper_effort_max) / 2.0
+        if self.review_paradigm == REVIEW_PARADIGM_DISCRETE:
+            return self.discrete_paper_timesteps
+        return self.continuous_paper_timesteps
 
     def _schedule_new_papers(self) -> None:
         for paper in self.papers:
