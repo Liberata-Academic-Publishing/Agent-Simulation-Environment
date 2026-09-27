@@ -106,12 +106,7 @@ DECISION_LABELS = {
 
 
 def seed_initial_papers(agents: list[Agent]):
-    """Seed a small, staggered bootstrap supply of reviewable papers.
-
-    Releasing all seed papers at timestep 1 creates an artificial review rush.
-    The steady-state supply must come from agent writing; bootstrap papers merely
-    prevent an empty market while the first manuscripts are being completed.
-    """
+    """Seed starting papers per SimConfig (listed on the market from timestep 1)."""
     index = 0
     for agent in agents:
         for _ in range(SIM.init_papers_per_agent):
@@ -120,10 +115,8 @@ def seed_initial_papers(agents: list[Agent]):
                 author=agent,
                 quality=agent.intrinsic_talent,
                 current_ac=random.uniform(SIM.init_ac_min, SIM.init_ac_max),
-                market_listed=False,
+                market_listed=True,
             )
-            stagger = max(1, int(SIM.initial_listing_stagger_timesteps))
-            paper.scheduled_listing_timestep = 1 + ((index - 1) % stagger)
             paper.title = f"Paper {index}"
             paper.list_on_market(0)
             Agent.all_papers.append(paper)

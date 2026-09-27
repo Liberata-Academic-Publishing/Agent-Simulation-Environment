@@ -59,10 +59,8 @@ def seed_initial_papers(agents: list[Agent], rng: random.Random) -> None:
                 author=agent,
                 quality=agent.intrinsic_talent,
                 current_ac=rng.uniform(SIM.init_ac_min, SIM.init_ac_max),
-                market_listed=False,
+                market_listed=True,
             )
-            stagger = max(1, int(SIM.initial_listing_stagger_timesteps))
-            paper.scheduled_listing_timestep = 1 + ((index - 1) % stagger)
             paper.title = f"Paper {index}"
             Agent.all_papers.append(paper)
 

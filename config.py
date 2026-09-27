@@ -34,17 +34,14 @@ class SimConfig:
     num_low_talent_rl_agents: int = 0
     num_timesteps: int = 5000
     seed: int = 11
-    # Must cover manuscript completion plus a post-publication earning window;
-    # otherwise writing has zero value in the agents' forward-looking choices.
-    forecast_horizon_timesteps: int = 200
+    forecast_horizon_timesteps: int = 30
     output_dir: str = "runs"
 
     # --- Initial papers --------------------------------------------------
     # Papers seeded before timestep 1 (bootstraps review material). Set
     # init_papers_per_agent=0 for no starting papers, or init_ac_min=init_ac_max=0
     # to start every agent at zero capital.
-    init_papers_per_agent: int = 2
-    initial_listing_stagger_timesteps: int = 50
+    init_papers_per_agent: int = 10
     init_ac_min: float = 0
     init_ac_max: float = 0
     init_accrual_min: float = 0.8
@@ -96,12 +93,6 @@ class SimConfig:
     # paper's base accrual rate and the accrual bump a review can earn, and it
     # drives the per-reviewer share the author is willing to offer.
     quality_sigma: float = 0.20
-    # Optional shared quality/rate talents, enabled with Agent.configure_talents.
-    talent_rate_sigma: float = 0.20
-    talent_min_rate: float = 0.01
-    talent_low: float = 0.6
-    talent_high: float = 1.4
-    talent_agents_per_group: int = 20
     min_paper_quality: float = 0.10
     quality_price_scale: float = 1.5    # higher quality -> smaller offered share
     history_price_scale: float = 0.5    # better reviewer history -> larger offered share
@@ -134,8 +125,8 @@ class SimConfig:
     review_paradigm: str = "continuous"       # "continuous" | "discrete"
     review_effort_per_timestep: float = 1.0     # effort added per review timestep
     writing_effort_per_timestep: float = 1.0    # continuous writing effort per timestep
-    min_review_effort_threshold: float = 3.0    # minimum valid review/share effort
-    good_faith_review_threshold: float = 5.0    # continuous-mode classification
+    min_review_effort_threshold: float = 0.0    # minimum valid review/share effort
+    good_faith_review_threshold: float = 3.0    # continuous-mode classification
     bad_review_timesteps: float = 1.0           # discrete bad-faith duration (T_B)
     # Fallback when continuous publishing is ``choice``; otherwise derived from
     # ``good_faith_review_threshold`` (see ``discrete_good_review_timesteps``).
