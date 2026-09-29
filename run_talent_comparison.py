@@ -29,11 +29,11 @@ class Actions:
         pass
 
 
-def run(seed, steps):
+def run(seed, steps, actions=None):
     random.seed(seed)
     groups = build_talent_cohorts()
     agents = [a for group in groups.values() for a in group]
-    actions = Actions()
+    actions = Actions() if actions is None else actions
     env = Environment(agents=agents, papers=[], history=actions,
                       continuous_publishing="threshold", paper_effort_mode="fixed",
                       review_paradigm="continuous", use_merit_market_clearing=False)
