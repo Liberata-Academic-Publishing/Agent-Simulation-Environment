@@ -102,6 +102,8 @@ class SimConfig:
     talent_low: float = 0.6
     talent_high: float = 1.4
     talent_agents_per_group: int = 20
+    experience_alpha: float = 0.30
+    experience_h: float = 9.0
     min_paper_quality: float = 0.10
     quality_price_scale: float = 1.5    # higher quality -> smaller offered share
     history_price_scale: float = 0.5    # better reviewer history -> larger offered share
@@ -227,6 +229,15 @@ class SimConfig:
     dqn_batch_size: int = 32
     dqn_target_sync: int = 200
     dqn_autoload_policy: bool = True
+
+
+    def __post_init__(self):
+        import math
+
+        if not math.isfinite(self.experience_alpha) or self.experience_alpha < 0:
+            raise ValueError("experience_alpha must be finite and nonnegative")
+        if not math.isfinite(self.experience_h) or self.experience_h <= 0:
+            raise ValueError("experience_h must be finite and positive")
 
 
 @dataclass(frozen=True)

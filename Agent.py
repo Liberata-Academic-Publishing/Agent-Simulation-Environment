@@ -900,8 +900,29 @@ class Agent(ABC):
         self.intrinsic_talent = quality  # compatibility for strategy estimates
         self.talent_sampling_enabled = True
 
+    @property
+    def publication_count(self) -> int:
+        """Authored publications in this world, including seeded papers."""
+        return sum(p.author is self for p in Agent.all_papers)
+
+    @property
+    def experience_multiplier(self) -> float:
+        if not self.talent_sampling_enabled or SIM.experience_alpha == 0:
+            return 1.0
+        count = self.publication_count
+        return 1.0 + SIM.experience_alpha * count / (count + SIM.experience_h)
+
+    @property
+    def effective_quality_talent(self) -> float:
+        base = self.quality_talent if self.talent_sampling_enabled else self.intrinsic_talent
+        return base * self.experience_multiplier
+
+    @property
+    def effective_rate_talent(self) -> float:
+        return self.rate_talent * self.experience_multiplier
+
     def _sample_quality(self) -> float:
-        mean = self.quality_talent if self.talent_sampling_enabled else self.intrinsic_talent
+        mean = self.effective_quality_talent
         return quality_multiplier(random.gauss(mean, QUALITY_SIGMA))
 
     def sample_review_quality(self) -> float:
@@ -911,7 +932,7 @@ class Agent(ABC):
     def _sample_rate(self) -> float:
         if not self.talent_sampling_enabled:
             return 1.0
-        return max(SIM.talent_min_rate, random.gauss(self.rate_talent, SIM.talent_rate_sigma))
+        return max(SIM.talent_min_rate, random.gauss(self.effective_rate_talent, SIM.talent_rate_sigma))
 
     def review_effort_delta(self) -> float:
         """Review effort contributed in one timestep."""

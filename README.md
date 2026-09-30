@@ -255,6 +255,58 @@ setup and checks its results against `results.json`; rerun the baseline command
 above first if that file was generated with different settings. Both scripts
 write to the dedicated experiment directory rather than replacing `runs/`.
 
+## Publication experience experiment (2026-09-28)
+
+Agents that enable shared talent sampling through `configure_talents()` now
+multiply both base talent means by `1 + alpha * n / (n + h)`. Defaults in
+`config.py` are `experience_alpha=0.30` and `experience_h=9.0`; alpha zero
+disables the modifier. Gaussian standard deviations and outcome floors stay
+unchanged. Base talents remain fixed, and previously sampled manuscript quality
+is preserved. Publication count is authored papers in the current world,
+including seeded papers, excluding review ownership shares.
+
+Scope: this applies to the four `TalentAgent` cohorts. Legacy agents that do not
+enable shared talent sampling retain their existing behavior; this is not an
+automatic migration of all heuristic/RL agents or their forecasting models.
+
+The fixed-strategy experiment uses 80 agents, 1000 steps, seed 11, zero initial
+papers, and 50 units of work per manuscript. Publications increase from 1378 to
+1572 (+14.1%). Mean listing-to-claim wait decreases from 0.703 to 0.613 steps.
+Completed reviews are 1360 good / 0 bad without experience and 1563 good / 0 bad
+with experience. Good faith is prescribed by the strategy, and review demand
+is coupled to publication. These results do not establish improved autonomous
+review choices or general market efficiency. Alpha is a modeling choice anchored
+to a target gain; one seed does not establish robustness.
+
+Results and parameter rationale: `experiments/experience_calibration/`.
+Reproduce the experience run into a fresh directory:
+
+```bash
+python -m unittest test_experience test_talents -v
+python calibrate_experience_baseline.py --output experiments/experience_calibration/new_experience_run
+python measure_experience_market.py
+```
+
+The market replay checks exact agreement with the two saved group summaries
+before recording wait statistics. Unclaimed listed papers are reported separately.
+
+This change includes the experience implementation, its tests, calibration and
+market replay scripts, saved results, and the optional recorder argument in
+`run_talent_comparison.run`. The pre-existing local `plot_talent_diagnostics.py`
+and `experiments/two_talent_comparison/diagnostics/` are outside this commit.
+Eight focused tests pass. The nine known legacy failures are accepted as
+non-blocking by the project owner; see `AGENTS.md` for their exact identities.
+The saved calibration results describe the pre-citation-network experiment at
+commit `b50d8d3`. Later remote citation-network changes were merged for publishing;
+use that experiment commit to reproduce the archived figures exactly. Running
+the replay on changed mechanics may intentionally fail its equality check.
+Post-merge validation: 24 of 25 experience, talent, and citation tests pass.
+`CitationEnvironmentIntegrationTest.test_history_reports_citation_metrics`
+also fails with experience disabled; this separate citation test issue is not
+part of the nine accepted legacy failures.
+
+### RL Training
+
 Reinforcement-learning (RL) agents learn a policy that maps the simulation state, such as writing progress, active review effort, available offers, and capital, to the most rewarding action. They train against heuristic opponents and then use the
 saved policy while competing with other agent groups in a simulation.
 

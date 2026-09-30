@@ -247,3 +247,20 @@ python run_simulation.py \
 - **Config-first**: change defaults in `config.py`; use CLI flags for one-offs.
 - **Determinism**: runs use a fixed `seed` (default 7) for reproducibility.
 - Frozen dataclasses for config; type hints use `from __future__ import annotations`.
+
+## Accepted legacy test failures (2026-09-28)
+
+The project owner explicitly requested that these nine existing test_simulation
+failures be ignored in future work. Do not investigate or block commits/pushes
+on these known failures unless requested. This exemption does not cover new
+failures. The same nine reproduce with publication experience disabled.
+
+- ContinuousMergedPhaseTest.test_reviewer_claim_switch_finalizes_old_review
+- EconomicsTest.test_review_bump_rises_and_saturates_with_sigmoid
+- HeuristicPolicyTest.test_work_phase_continues_when_marginal_effort_dominates
+- MarketEconomicsTest.test_environment_scarcity_multiplier_when_crowded
+- MarketplaceLifecycleTest.test_min_effort_review_earns_reward
+- ReviewParadigmTest.test_continuous_mode_classifies_finished_reviews_by_threshold
+- ReviewParadigmTest.test_discrete_bad_faith_review_finishes_after_one_timestep
+- ReviewerStateTest.test_grabbing_new_paper_finalizes_active_review
+- ReviewerStateTest.test_peer_review_history_updates_on_completion
