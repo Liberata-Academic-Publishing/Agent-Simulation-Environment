@@ -28,12 +28,12 @@ from config import SIM
 from HeuristicAgent import HeuristicAgent
 from Paper import (
     BAD_FAITH_REVIEW,
-    DEFAULT_MAX_REVIEWER_SHARE,
     GOOD_FAITH_REVIEW,
     MIN_REVIEW_EFFORT_THRESHOLD,
     REVIEW_PARADIGM_DISCRETE,
     Paper,
 )
+from QLearningAgent import share_feature
 
 DISCRETE_REVIEW_PARADIGM = REVIEW_PARADIGM_DISCRETE
 
@@ -347,7 +347,7 @@ class DiscreteQLearningAgent(HeuristicAgent):
                 np.tanh(self.academic_capital / 100.0),
                 np.tanh(self.peer_review_history / 10.0),
                 np.tanh(num_reviewable / 10.0),
-                np.tanh(best_share / DEFAULT_MAX_REVIEWER_SHARE),
+                share_feature(best_share),
                 np.tanh(best_ac / 100.0),
                 0.0,
                 min(

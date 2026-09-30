@@ -36,6 +36,7 @@ Library: numpy only. Two interchangeable Q backends (tabular + linear).
 
 from __future__ import annotations
 
+import math
 import pickle
 import random
 from collections import defaultdict
@@ -53,7 +54,6 @@ from Agent import (
 from config import SIM
 from HeuristicAgent import HeuristicAgent
 from Paper import (
-    DEFAULT_MAX_REVIEWER_SHARE,
     MIN_REVIEW_EFFORT_THRESHOLD,
     Paper,
 )
@@ -75,6 +75,26 @@ NUM_ACTIONS = len(QAction)
 
 # Scale used to squash invested review effort into ~[0, 1) for the feature.
 EFFORT_FEATURE_SCALE = 5.0
+
+# Range of the log-scaled review-share feature (see ``share_feature``).
+SHARE_FEATURE_MIN = SIM.rl_share_feature_min
+SHARE_FEATURE_MAX = SIM.rl_share_feature_max
+
+
+def share_feature(share: float) -> float:
+    """Log-scale a review share into [0, 1] for the price feature.
+
+    Offers span several orders of magnitude (0.01% floor to tens of percent),
+    and a linear feature puts nearly all of them in one tabular bucket. This
+    maps ``SHARE_FEATURE_MIN`` -> 0 and ``SHARE_FEATURE_MAX`` -> 1 on a log10
+    scale, clipping outside that range. No offer (share <= 0) maps to 0.
+    """
+    if share <= 0.0:
+        return 0.0
+    low = math.log10(SHARE_FEATURE_MIN)
+    high = math.log10(SHARE_FEATURE_MAX)
+    scaled = (math.log10(share) - low) / (high - low)
+    return min(max(scaled, 0.0), 1.0)
 
 
 def ac_percentile_rank(agent_ac: float, capitals: list[float]) -> float:
@@ -388,7 +408,7 @@ class QLearningAgent(HeuristicAgent):
                 np.tanh(self.academic_capital / 100.0),
                 np.tanh(self.peer_review_history / 10.0),
                 np.tanh(num_reviewable / 10.0),
-                np.tanh(best_share / DEFAULT_MAX_REVIEWER_SHARE),
+                share_feature(best_share),
                 np.tanh(best_ac / 100.0),
                 1.0 if in_review else 0.0,
                 min(
