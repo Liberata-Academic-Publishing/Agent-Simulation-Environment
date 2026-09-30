@@ -1517,8 +1517,29 @@ def _paper_quality_ac_points(history: "History") -> list[tuple[float, float, boo
     return points
 
 
+def _paper_quality_citation_points(
+    history: "History",
+) -> list[tuple[float, float, bool]]:
+    """(quality, citations received, reviewed?) for every paper that was tracked."""
+    counts = getattr(history, "paper_citation_count", {})
+    points: list[tuple[float, float, bool]] = []
+    for label, count in counts.items():
+        quality = history.paper_quality.get(label)
+        if quality is None:
+            continue
+        points.append((quality, float(count), history.paper_reviewed.get(label, False)))
+    return points
+
+
 def _draw_quality_vs_ac(ax, history: "History") -> None:
-    points = _paper_quality_ac_points(history)
+    _draw_quality_scatter(
+        ax, _paper_quality_ac_points(history), "Final accrued capital (AC)"
+    )
+
+
+def _draw_quality_scatter(
+    ax, points: list[tuple[float, float, bool]], ylabel: str
+) -> None:
     if not points:
         ax.text(0.5, 0.5, "No paper data", ha="center", va="center")
         ax.set_axis_off()
@@ -1535,7 +1556,7 @@ def _draw_quality_vs_ac(ax, history: "History") -> None:
             edgecolors="#4c1d95", label="reviewed",
         )
     ax.set_xlabel("Paper quality")
-    ax.set_ylabel("Final accrued capital (AC)")
+    ax.set_ylabel(ylabel)
     ax.legend(fontsize=8)
 
 
@@ -1546,6 +1567,19 @@ def plot_paper_quality_vs_ac(
     fig, ax = plt.subplots(figsize=(11, 6))
     _draw_quality_vs_ac(ax, history)
     ax.set_title("Paper quality vs accrued capital")
+    fig.tight_layout()
+    return _finish(fig, path, show)
+
+
+def plot_paper_quality_vs_citations(
+    history: "History", path: str | None = None, show: bool = False
+):
+    """Citations received vs quality, split by whether reviewed."""
+    fig, ax = plt.subplots(figsize=(11, 6))
+    _draw_quality_scatter(
+        ax, _paper_quality_citation_points(history), "Citations received"
+    )
+    ax.set_title("Paper quality vs citations")
     fig.tight_layout()
     return _finish(fig, path, show)
 
@@ -2848,6 +2882,9 @@ _GALLERY_CHARTS = (
     ("talent_vs_review_ac", _has_talent_vs_review_ac, plot_talent_vs_review_ac),
     ("paper_quality_vs_ac",
      lambda h: bool(_paper_quality_ac_points(h)), plot_paper_quality_vs_ac),
+    ("paper_quality_vs_citations",
+     lambda h: bool(_paper_quality_citation_points(h)),
+     plot_paper_quality_vs_citations),
     ("paper_quality_vs_review_faith",
      lambda h: bool(_paper_quality_review_faith_points(h)),
      plot_paper_quality_vs_review_faith),
@@ -2993,6 +3030,11 @@ def plot_all(
         ),
         "paper_quality_vs_ac": plot_paper_quality_vs_ac(
             history, os.path.join(outdir, "paper_quality_vs_ac.png"), show=show
+        ),
+        "paper_quality_vs_citations": plot_paper_quality_vs_citations(
+            history,
+            os.path.join(outdir, "paper_quality_vs_citations.png"),
+            show=show,
         ),
         "paper_quality_vs_review_faith": plot_paper_quality_vs_review_faith(
             history,

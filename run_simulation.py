@@ -371,6 +371,7 @@ CHART_DESCRIPTIONS = {
     "marketplace_600_700": "Marketplace supply zoom: timesteps 600–700",
     "marketplace_1800_1900": "Marketplace supply zoom: timesteps 1800–1900",
     "paper_quality_vs_ac": "Paper quality vs accrued capital (reviewed or not)",
+    "paper_quality_vs_citations": "Paper quality vs citations received (reviewed or not)",
     "paper_quality_vs_review_faith": "Paper quality vs good/bad-faith review effort and counts",
     "writing_effort_vs_rate": "Writing effort invested vs base accrual rate (asymptote)",
     "paper_writing_effort_over_time": "Paper-writing effort at publication over time",

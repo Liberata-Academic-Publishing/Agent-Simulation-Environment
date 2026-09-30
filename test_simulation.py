@@ -1290,6 +1290,34 @@ class DiscreteQLearningAgentTest(unittest.TestCase):
 
 
 class QLearningRewardTest(unittest.TestCase):
+    def test_share_feature_is_log_scaled(self):
+        from QLearningAgent import share_feature
+
+        self.assertEqual(share_feature(0.0), 0.0)
+        self.assertAlmostEqual(share_feature(1e-4), 0.0)
+        # Geometric midpoint of [0.01%, 50%] sits at the middle of the scale.
+        self.assertAlmostEqual(share_feature((1e-4 * 0.5) ** 0.5), 0.5)
+        self.assertAlmostEqual(share_feature(0.5), 1.0)
+        self.assertEqual(share_feature(1e-9), 0.0)
+        self.assertEqual(share_feature(0.9), 1.0)
+
+    def test_share_feature_separates_offer_sizes_in_tabular_key(self):
+        import numpy as np
+
+        from QLearningAgent import TabularQ, share_feature
+
+        backend = TabularQ()
+
+        def bucket(share):
+            features = np.zeros(9)
+            features[5] = share_feature(share)
+            return backend._key(features)[5]
+
+        # The old linear feature put every offer below ~20% in bucket 0.
+        self.assertLess(bucket(0.0002), bucket(0.002))
+        self.assertLess(bucket(0.002), bucket(0.02))
+        self.assertLess(bucket(0.02), bucket(0.2))
+
     def test_ac_percentile_rank_handles_ties(self):
         from QLearningAgent import ac_percentile_rank
 

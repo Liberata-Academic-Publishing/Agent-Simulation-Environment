@@ -411,6 +411,7 @@ class History:
         self.paper_quality: dict[str, float] = {}
         self.paper_authors: dict[str, str] = {}
         self.paper_reviewed: dict[str, bool] = {}
+        self.paper_citation_count: dict[str, int] = {}
         # Reviewer ownership per paper, for the writing-vs-peer-review AC split.
         self.paper_reviewer: dict[str, str] = {}
         self.paper_reviewer_share: dict[str, float] = {}
@@ -498,6 +499,9 @@ class History:
                 self.paper_authors[label] = self._label(paper.author, "Agent")
                 self.paper_quality[label] = float(getattr(paper, "quality", 0.0))
                 self.paper_reviewed[label] = bool(getattr(paper, "reviewed", False))
+                self.paper_citation_count[label] = int(
+                    getattr(paper, "citation_count", 0)
+                )
                 reviewer = getattr(paper, "reviewer", None)
                 if reviewer is not None:
                     self.paper_reviewer[label] = self._label(reviewer, "Agent")
@@ -673,6 +677,7 @@ class History:
             "paper_authors": dict(self.paper_authors),
             "paper_quality": dict(self.paper_quality),
             "paper_reviewed": dict(self.paper_reviewed),
+            "paper_citation_count": dict(self.paper_citation_count),
             "paper_writing_effort": dict(self.paper_writing_effort),
             "paper_required_writing_effort": dict(self.paper_required_writing_effort),
             "paper_accrual_rate": dict(self.paper_accrual_rate),
@@ -992,6 +997,7 @@ class History:
             "gallery_action_limit": max_actions,
             "paper_authors": dict(self.paper_authors),
             "paper_quality": dict(self.paper_quality),
+            "paper_citation_count": dict(self.paper_citation_count),
             "paper_writing_effort": dict(self.paper_writing_effort),
             "paper_required_writing_effort": dict(self.paper_required_writing_effort),
             "paper_accrual_rate": dict(self.paper_accrual_rate),
@@ -1068,6 +1074,9 @@ class History:
         history.paper_quality = dict(data.get("paper_quality") or {})
         history.paper_authors = dict(data.get("paper_authors") or {})
         history.paper_reviewed = dict(data.get("paper_reviewed") or {})
+        history.paper_citation_count = {
+            k: int(v) for k, v in (data.get("paper_citation_count") or {}).items()
+        }
         history.paper_writing_effort = {
             k: float(v) for k, v in (data.get("paper_writing_effort") or {}).items()
         }
