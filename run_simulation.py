@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import os
 import random
 import sys
@@ -409,7 +410,8 @@ def open_chart(path: str) -> None:
         os.system(f'xdg-open "{path}"')
 
 
-def save_outputs(history: History, *, show: bool = False, open_charts: bool = False):
+def save_outputs(history: History, *, show: bool = False, open_charts: bool = False,
+                 include_training: bool = True):
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     csv_path = history.to_csv(os.path.join(OUTPUT_DIR, "history.csv"))
     json_path = history.to_json(os.path.join(OUTPUT_DIR, "history.json"))
@@ -425,14 +427,14 @@ def save_outputs(history: History, *, show: bool = False, open_charts: bool = Fa
 
     paths = visualize.plot_all(history, OUTPUT_DIR, show=show)
     training_log_path = os.path.join(OUTPUT_DIR, "training_log.json")
-    training_chart = visualize.plot_episode_return_from_log(
+    training_chart = None if not include_training else visualize.plot_episode_return_from_log(
         training_log_path,
         os.path.join(OUTPUT_DIR, "episode_return.png"),
         show=show,
     )
     if training_chart:
         paths["episode_return"] = training_chart
-    review_time_chart = visualize.plot_avg_peer_review_time_from_log(
+    review_time_chart = None if not include_training else visualize.plot_avg_peer_review_time_from_log(
         training_log_path,
         os.path.join(OUTPUT_DIR, "avg_peer_review_time.png"),
         show=show,
@@ -920,6 +922,9 @@ def parse_args(argv=None):
         description="Run the Liberata peer-review simulation. By default, after "
         "the run it asks whether to save it to the docs/ gallery and what to call it."
     )
+    parser.add_argument('--fixed-strategy', action='store_true',
+                        help='Run four shared-talent cohorts with experience and citations; no RL.')
+    parser.add_argument('--agents-per-group', type=int, default=SIM.talent_agents_per_group)
     parser.add_argument(
         "--name",
         metavar="TITLE",
@@ -1455,8 +1460,65 @@ def _policy_paths(args) -> tuple[str | None, str | None, str | None]:
     return rl_policy_path, low_talent_rl_policy_path, dqn_policy_path
 
 
+def _run_fixed_strategy(args, *, seed: int, title: str | None = None) -> dict:
+    from dataclasses import asdict
+    from export_run import export_run
+    from run_talent_comparison import Actions, mechanism_results, run
+
+    history = History()
+
+    class GalleryActions(Actions):
+        def record_action(self, env, agent, record):
+            super().record_action(env, agent, record)
+            history.record_action(env, agent, record)
+
+        def record_step(self, env):
+            history.record_step(env)
+            if env.timestep % PROGRESS_INTERVAL == 0:
+                print(f'Timestep {env.timestep}/{args.timesteps} ({len(env.papers)} papers)', flush=True)
+
+    actions = GalleryActions()
+    run(seed, args.timesteps, actions, count_per_group=args.agents_per_group)
+    env = actions.environment
+    if not args.quiet:
+        print_summary(env, history)
+        print_choice_breakdown(history)
+    save_outputs(history, show=args.show, open_charts=args.open, include_training=False)
+    details = mechanism_results(env)
+    with open(os.path.join(OUTPUT_DIR, 'fixed_strategy_metrics.json'), 'w', encoding='utf-8') as stream:
+        json.dump(details, stream, indent=2)
+    config = asdict(SIM)
+    config.update(dict(simulation_mode='fixed_strategy', training_performed=False,
+        num_timesteps=args.timesteps, seed=seed, num_heuristic_agents=0,
+        num_rl_agents=0, num_dqn_agents=0, num_random_agents=0,
+        num_probabilistic_agents=0, num_low_talent_rl_agents=0,
+        num_fixed_strategy_agents=4*args.agents_per_group,
+        talent_agents_per_group=args.agents_per_group, init_papers_per_agent=0,
+        review_paradigm='continuous', continuous_publishing='threshold',
+        paper_effort_mode='fixed', use_merit_market_clearing=False,
+        forecast_horizon_timesteps=30))
+    if args.no_archive:
+        print('\nNot archived to the gallery (--no-archive).')
+    else:
+        run_title = title or args.name
+        if run_title is None:
+            try:
+                run_title = input('Gallery run name (blank to skip): ').strip()
+            except EOFError:
+                run_title = ''
+        if run_title:
+            run_id = export_run(history, config=config, title=run_title)
+            with open(os.path.join('docs', 'data', run_id, 'fixed_strategy_metrics.json'),
+                      'w', encoding='utf-8') as stream:
+                json.dump(details, stream, indent=2)
+            print(f'Archived run to docs/data/{run_id}/ (publish docs/data to update the website).')
+    return _summary_row(history, seed=seed, title=title or args.name or 'fixed strategy')
+
+
 def _run_once(args, *, seed: int, title: str | None = None) -> dict:
     _apply_review_bump_config(args)
+    if args.fixed_strategy:
+        return _run_fixed_strategy(args, seed=seed, title=title)
     rl_policy_path, low_talent_rl_policy_path, dqn_policy_path = _policy_paths(args)
 
     history = History()

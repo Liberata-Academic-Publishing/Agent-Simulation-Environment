@@ -82,6 +82,13 @@ CLI flags for one-off overrides.
 
 ## Commands
 
+For the integrated fixed-strategy experiment (no RL training), use
+`python run_talent_comparison.py --steps 1000 --seeds 11`.
+It enables shared quality/rate talents with publication experience and uses the
+configured citation system. Outputs go to `experiments/fixed_strategy_integrated`.
+Future opt-in training: `python train_rl.py --shared-talents --num-rl 80 --horizon 30 --no-archive`.
+Do not run training when the user requests only fixed-strategy simulation.
+
 ```bash
 # Run a simulation (prompts to archive afterward)
 python run_simulation.py

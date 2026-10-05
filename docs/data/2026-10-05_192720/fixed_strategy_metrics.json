@@ -1,0 +1,117 @@
+{
+  "agents": [
+    {
+      "name": "quality_low_rate_low_0",
+      "group": "quality_low_rate_low",
+      "quality_talent": 0.6,
+      "rate_talent": 0.6,
+      "publications": 2,
+      "experience_multiplier": 1.0545454545454545,
+      "effective_quality_talent": 0.6327272727272727,
+      "effective_rate_talent": 0.6327272727272727,
+      "citations": 17,
+      "capital": 0.841732250071829
+    },
+    {
+      "name": "quality_low_rate_low_1",
+      "group": "quality_low_rate_low",
+      "quality_talent": 0.6,
+      "rate_talent": 0.6,
+      "publications": 2,
+      "experience_multiplier": 1.0545454545454545,
+      "effective_quality_talent": 0.6327272727272727,
+      "effective_rate_talent": 0.6327272727272727,
+      "citations": 22,
+      "capital": 1.165811490907735
+    },
+    {
+      "name": "quality_low_rate_high_0",
+      "group": "quality_low_rate_high",
+      "quality_talent": 0.6,
+      "rate_talent": 1.4,
+      "publications": 6,
+      "experience_multiplier": 1.1199999999999999,
+      "effective_quality_talent": 0.6719999999999999,
+      "effective_rate_talent": 1.5679999999999998,
+      "citations": 81,
+      "capital": 5.652921566763847
+    },
+    {
+      "name": "quality_low_rate_high_1",
+      "group": "quality_low_rate_high",
+      "quality_talent": 0.6,
+      "rate_talent": 1.4,
+      "publications": 6,
+      "experience_multiplier": 1.1199999999999999,
+      "effective_quality_talent": 0.6719999999999999,
+      "effective_rate_talent": 1.5679999999999998,
+      "citations": 69,
+      "capital": 4.924381620868358
+    },
+    {
+      "name": "quality_high_rate_low_0",
+      "group": "quality_high_rate_low",
+      "quality_talent": 1.4,
+      "rate_talent": 0.6,
+      "publications": 2,
+      "experience_multiplier": 1.0545454545454545,
+      "effective_quality_talent": 1.476363636363636,
+      "effective_rate_talent": 0.6327272727272727,
+      "citations": 30,
+      "capital": 1.7290599292731446
+    },
+    {
+      "name": "quality_high_rate_low_1",
+      "group": "quality_high_rate_low",
+      "quality_talent": 1.4,
+      "rate_talent": 0.6,
+      "publications": 2,
+      "experience_multiplier": 1.0545454545454545,
+      "effective_quality_talent": 1.476363636363636,
+      "effective_rate_talent": 0.6327272727272727,
+      "citations": 30,
+      "capital": 1.8984806900262945
+    },
+    {
+      "name": "quality_high_rate_high_0",
+      "group": "quality_high_rate_high",
+      "quality_talent": 1.4,
+      "rate_talent": 1.4,
+      "publications": 6,
+      "experience_multiplier": 1.1199999999999999,
+      "effective_quality_talent": 1.5679999999999998,
+      "effective_rate_talent": 1.5679999999999998,
+      "citations": 81,
+      "capital": 6.088693233408335
+    },
+    {
+      "name": "quality_high_rate_high_1",
+      "group": "quality_high_rate_high",
+      "quality_talent": 1.4,
+      "rate_talent": 1.4,
+      "publications": 6,
+      "experience_multiplier": 1.1199999999999999,
+      "effective_quality_talent": 1.5679999999999998,
+      "effective_rate_talent": 1.5679999999999998,
+      "citations": 93,
+      "capital": 8.698919218680455
+    }
+  ],
+  "market": {
+    "claimed_papers": 31,
+    "mean_wait": 6.129032258064516,
+    "median_wait": 1,
+    "max_wait": 37,
+    "unclaimed_listed": 1,
+    "unclaimed_ages": [
+      24
+    ],
+    "good_reviews": 31,
+    "bad_reviews": 0,
+    "bad_to_good_ratio": 0.0
+  },
+  "total_papers": 32,
+  "total_citations": 423,
+  "total_citation_ac": 30.999999999999996,
+  "total_agent_ac": 30.999999999999996
+}

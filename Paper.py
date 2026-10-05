@@ -874,12 +874,12 @@ class Paper:
                 self.share_distribution[agent] = (
                     self.share_distribution.get(agent, 0.0) + share
                 )
+            self.review_bump_epsilon = epsilon
+            self.review_completed_timestep = (
+                int(current_timestep) if current_timestep is not None else None
+            )
             if validate_review_bump_duration(SIM.review_bump_duration) == REVIEW_BUMP_DECAY:
                 self.base_accrual_rate = self.accrual_rate
-                self.review_bump_epsilon = epsilon
-                self.review_completed_timestep = (
-                    int(current_timestep) if current_timestep is not None else None
-                )
                 self.refresh_accrual_rate(current_timestep)
             else:
                 self.accrual_rate *= 1.0 + epsilon

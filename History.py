@@ -733,7 +733,7 @@ class History:
         for entity in entities:
             label = self._label(entity, prefix)
             if prefix == "Agent":
-                self.agent_groups[label] = type(entity).__name__
+                self.agent_groups[label] = getattr(entity, "history_group", type(entity).__name__)
             series = store.get(label)
             if series is None:
                 series = [0.0] * (target_len - 1)  # back-fill days before it existed

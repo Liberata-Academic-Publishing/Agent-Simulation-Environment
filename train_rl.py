@@ -87,6 +87,7 @@ def build_env(
     gamma: float = 0.95,
     history: History | None = None,
     intrinsic_talent: float = 1.0,
+    shared_talents: bool = False,
 ) -> tuple[Environment, list[QLearningAgent], list[HeuristicAgent]]:
     """Fresh env: shared-backend RL agents vs. heuristic opponents."""
     rng = random.Random(seed)
@@ -111,11 +112,22 @@ def build_env(
     ]
     agents: list[Agent] = [*rl_agents, *heuristics]
 
-    seed_initial_papers(agents, rng)
+    environment_options = {}
+    if shared_talents:
+        pairs = [(q, r) for q in (SIM.talent_low, SIM.talent_high)
+                 for r in (SIM.talent_low, SIM.talent_high)]
+        for cohort in (rl_agents, heuristics):
+            for index, agent in enumerate(cohort):
+                agent.configure_talents(*pairs[index % len(pairs)])
+        environment_options = dict(continuous_publishing='threshold',
+                                   paper_effort_mode='fixed',
+                                   use_merit_market_clearing=False)
+    else:
+        seed_initial_papers(agents, rng)
     env = Environment(agents=agents, papers=Agent.all_papers,
                       forecast_horizon_timesteps=horizon,
                       review_paradigm=review_paradigm,
-                      history=history)
+                      history=history, **environment_options)
     return env, rl_agents, heuristics
 
 
@@ -150,6 +162,7 @@ def build_train_config(args) -> dict[str, Any]:
         "seed": args.seed,
         "low_talent": args.low_talent,
         "low_talent_value": args.low_talent_value,
+        "shared_talents": args.shared_talents,
     }
 
 
@@ -269,6 +282,7 @@ def train(args) -> None:
             horizon=args.horizon, seed=args.seed + episode,
             review_paradigm=args.review_paradigm, gamma=args.gamma,
             history=history, intrinsic_talent=rl_talent,
+            shared_talents=args.shared_talents,
         )
         env.run(args.timesteps)
         for agent in rl_agents:
@@ -294,6 +308,9 @@ def train(args) -> None:
     if args.episodes and not args.no_save:
         if args.save:
             save_path = args.save
+        elif args.shared_talents:
+            suffix = '.npy' if args.backend == 'linear' else '.pkl'
+            save_path = os.path.join(SIM.policies_dir, f'policy_{args.backend}_shared_talents{suffix}')
         elif args.low_talent:
             save_path = default_low_talent_policy_path(args.backend)
         else:
@@ -322,6 +339,7 @@ def evaluate(backend, args) -> None:
         horizon=args.horizon, seed=args.seed + 10_000,
         review_paradigm=args.review_paradigm,
         intrinsic_talent=rl_talent,
+        shared_talents=args.shared_talents,
     )
     env.run(args.timesteps)
 
@@ -392,7 +410,11 @@ def parse_args(argv=None):
         metavar="X",
         help="Intrinsic talent when --low-talent is set.",
     )
+    p.add_argument('--shared-talents', action='store_true',
+                   help='Four quality/rate cohorts with experience, no seed papers, fixed writing effort.')
     args = p.parse_args(argv)
+    if args.shared_talents and (args.low_talent or args.review_paradigm != 'continuous'):
+        p.error('--shared-talents requires continuous mode without --low-talent')
     if args.alpha is None:
         args.alpha = 0.1 if args.backend == "tabular" else 0.01
     return args
