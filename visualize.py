@@ -415,6 +415,146 @@ def plot_agent_group_comparison(
     return _finish(fig, path, show)
 
 
+# Display order and short names for the overview figure; unknown classes are
+# appended after these with their class name.
+OVERVIEW_GROUPS = {
+    "HeuristicAgent": "Heuristic",
+    "RandomAgent": "Random",
+    "ProbabilisticDiscreteAgent": "Probabilistic",
+    "QLearningAgent": "RL",
+    "DiscreteQLearningAgent": "RL (discrete)",
+    "DQNAgent": "DQN",
+    "LowTalentQLearningAgent": "Low-talent RL",
+    "LowTalentDiscreteQLearningAgent": "Low-talent RL (discrete)",
+}
+
+
+def _good_faith_share_by_group_over_time(
+    history: "History", groups: list[str], n_bins: int = 20
+) -> tuple[list[float], dict[str, list[float | None]]]:
+    """Per-group good-faith share of completed reviews in equal time bins."""
+    horizon = max(history.timesteps) if history.timesteps else 1
+    width = max(1.0, horizon / n_bins)
+    centers = [width * (i + 0.5) for i in range(n_bins)]
+    good = {g: [0] * n_bins for g in groups}
+    total = {g: [0] * n_bins for g in groups}
+    for timestep, agent_label, _, _, review_kind in history.completed_reviews:
+        group = history.agent_groups.get(agent_label, "Agent")
+        if group not in total:
+            continue
+        idx = min(n_bins - 1, int(timestep / width))
+        total[group][idx] += 1
+        if review_kind == GOOD_FAITH_REVIEW:
+            good[group][idx] += 1
+    shares = {
+        g: [good[g][i] / total[g][i] if total[g][i] else None for i in range(n_bins)]
+        for g in groups
+    }
+    return centers, shares
+
+
+def plot_overview(history: "History", path: str | None = None, show: bool = False):
+    """Four-panel headline figure: review faith, capital, behavior, inequality.
+
+    (a) does good- or bad-faith review emerge over time, (b) academic capital
+    by agent type split into writing vs reviewing, (c) review behavior by agent
+    type, (d) within-group and overall capital inequality (Gini).
+    """
+    from History import gini
+
+    summary = history.agent_group_summary()
+    present = set(summary)
+    groups = [g for g in OVERVIEW_GROUPS if g in present]
+    groups += sorted(present - set(groups))
+    names = [OVERVIEW_GROUPS.get(g, g) for g in groups]
+    cmap = plt.get_cmap("tab10")
+    colors = {g: cmap(i % 10) for i, g in enumerate(groups)}
+    x = list(range(len(groups)))
+
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    horizon = history.timesteps[-1] if history.timesteps else 0
+    fig.suptitle(
+        f"Peer review under Liberata economics — {len(history.agent_capital)} "
+        f"agents, {horizon} timesteps ({SIM.review_paradigm} review)",
+        fontsize=14, fontweight="bold",
+    )
+    if not summary:
+        for ax in axes.flat:
+            ax.text(0.5, 0.5, "No agent group data", ha="center", va="center")
+            ax.set_axis_off()
+        return _finish(fig, path, show)
+
+    # (a) Emergence: good-faith share of completed reviews over time.
+    ax = axes[0, 0]
+    centers, shares = _good_faith_share_by_group_over_time(history, groups)
+    for g, name in zip(groups, names):
+        pts = [(c, s) for c, s in zip(centers, shares[g]) if s is not None]
+        if pts:
+            ax.plot(*zip(*pts), marker="o", markersize=3, color=colors[g], label=name)
+    ax.axhline(0.5, color="#6b7280", linestyle=":", linewidth=1)
+    ax.set_ylim(0.0, 1.0)
+    ax.set_xlabel("Timestep")
+    ax.set_ylabel("Good-faith share of completed reviews")
+    ax.set_title("(a) Does good-faith review emerge?")
+    ax.legend(fontsize=8, loc="best")
+
+    # (b) Academic capital by agent type, split by source.
+    ax = axes[0, 1]
+    count = [max(1, summary[g]["agent_count"]) for g in groups]
+    from_writing = [summary[g]["total_ac_from_writing"] / n for g, n in zip(groups, count)]
+    from_review = [summary[g]["total_ac_from_reviewing"] / n for g, n in zip(groups, count)]
+    ax.bar(x, from_writing, color=[colors[g] for g in groups], label="from writing")
+    # Reviewer shares are not serialized, so histories reloaded from JSON have
+    # no writing/review split; show total capital only in that case.
+    if any(from_review):
+        ax.bar(
+            x, from_review, bottom=from_writing, color=[colors[g] for g in groups],
+            alpha=0.45, hatch="//", edgecolor="white", label="from peer review",
+        )
+        ax.legend(fontsize=8, loc="best")
+    ax.set_ylim(0.0, max(w + r for w, r in zip(from_writing, from_review)) * 1.12 or 1.0)
+    ax.set_xticks(x)
+    ax.set_xticklabels(names, rotation=15, ha="right")
+    ax.set_ylabel("Mean final academic capital per agent")
+    ax.set_title("(b) Academic capital by agent type")
+
+    # (c) Review behavior: completed reviews per agent, good vs bad faith.
+    ax = axes[1, 0]
+    good = [summary[g]["mean_good_faith_reviews"] for g in groups]
+    bad = [summary[g]["mean_bad_faith_reviews"] for g in groups]
+    ax.bar(x, good, color="#16a34a", label="good faith")
+    ax.bar(x, bad, bottom=good, color="#f87171", label="bad faith")
+    for i, g in enumerate(groups):
+        rate = summary[g]["good_faith_review_rate"]
+        ax.text(i, good[i] + bad[i], f"{rate:.0%} good", ha="center", va="bottom", fontsize=8)
+    ax.set_ylim(0.0, max(g + b for g, b in zip(good, bad)) * 1.12 or 1.0)
+    ax.set_xticks(x)
+    ax.set_xticklabels(names, rotation=15, ha="right")
+    ax.set_ylabel("Completed reviews per agent")
+    ax.set_title("(c) Review behavior by agent type")
+    ax.legend(fontsize=8, loc="upper left")
+
+    # (d) Inequality: Gini of final capital within each group and overall.
+    ax = axes[1, 1]
+    finals: dict[str, list[float]] = defaultdict(list)
+    for label, series in history.agent_capital.items():
+        finals[history.agent_groups.get(label, "Agent")].append(series[-1] if series else 0.0)
+    within = [gini(finals[g]) for g in groups]
+    overall = gini(v for vals in finals.values() for v in vals)
+    ax.bar(x, within, color=[colors[g] for g in groups])
+    ax.axhline(overall, color="black", linestyle="--", linewidth=1.2,
+               label=f"all agents ({overall:.2f})")
+    ax.set_ylim(0.0, 1.0)
+    ax.set_xticks(x)
+    ax.set_xticklabels(names, rotation=15, ha="right")
+    ax.set_ylabel("Gini of final academic capital")
+    ax.set_title("(d) Capital inequality")
+    ax.legend(fontsize=8, loc="upper right")
+
+    fig.tight_layout(rect=(0, 0, 1, 0.96))
+    return _finish(fig, path, show)
+
+
 def _draw_review_benefit(ax_left, ax_right, history: "History") -> None:
     """Reviewer-vs-author benefit over time, split by good/bad faith.
 
@@ -1517,8 +1657,29 @@ def _paper_quality_ac_points(history: "History") -> list[tuple[float, float, boo
     return points
 
 
+def _paper_quality_citation_points(
+    history: "History",
+) -> list[tuple[float, float, bool]]:
+    """(quality, citations received, reviewed?) for every paper that was tracked."""
+    counts = getattr(history, "paper_citation_count", {})
+    points: list[tuple[float, float, bool]] = []
+    for label, count in counts.items():
+        quality = history.paper_quality.get(label)
+        if quality is None:
+            continue
+        points.append((quality, float(count), history.paper_reviewed.get(label, False)))
+    return points
+
+
 def _draw_quality_vs_ac(ax, history: "History") -> None:
-    points = _paper_quality_ac_points(history)
+    _draw_quality_scatter(
+        ax, _paper_quality_ac_points(history), "Final accrued capital (AC)"
+    )
+
+
+def _draw_quality_scatter(
+    ax, points: list[tuple[float, float, bool]], ylabel: str
+) -> None:
     if not points:
         ax.text(0.5, 0.5, "No paper data", ha="center", va="center")
         ax.set_axis_off()
@@ -1535,7 +1696,7 @@ def _draw_quality_vs_ac(ax, history: "History") -> None:
             edgecolors="#4c1d95", label="reviewed",
         )
     ax.set_xlabel("Paper quality")
-    ax.set_ylabel("Final accrued capital (AC)")
+    ax.set_ylabel(ylabel)
     ax.legend(fontsize=8)
 
 
@@ -1546,6 +1707,19 @@ def plot_paper_quality_vs_ac(
     fig, ax = plt.subplots(figsize=(11, 6))
     _draw_quality_vs_ac(ax, history)
     ax.set_title("Paper quality vs accrued capital")
+    fig.tight_layout()
+    return _finish(fig, path, show)
+
+
+def plot_paper_quality_vs_citations(
+    history: "History", path: str | None = None, show: bool = False
+):
+    """Citations received vs quality, split by whether reviewed."""
+    fig, ax = plt.subplots(figsize=(11, 6))
+    _draw_quality_scatter(
+        ax, _paper_quality_citation_points(history), "Citations received"
+    )
+    ax.set_title("Paper quality vs citations")
     fig.tight_layout()
     return _finish(fig, path, show)
 
@@ -2848,6 +3022,9 @@ _GALLERY_CHARTS = (
     ("talent_vs_review_ac", _has_talent_vs_review_ac, plot_talent_vs_review_ac),
     ("paper_quality_vs_ac",
      lambda h: bool(_paper_quality_ac_points(h)), plot_paper_quality_vs_ac),
+    ("paper_quality_vs_citations",
+     lambda h: bool(_paper_quality_citation_points(h)),
+     plot_paper_quality_vs_citations),
     ("paper_quality_vs_review_faith",
      lambda h: bool(_paper_quality_review_faith_points(h)),
      plot_paper_quality_vs_review_faith),
@@ -2869,6 +3046,7 @@ _GALLERY_CHARTS = (
      lambda h: bool(getattr(h, "paper_writing_effort", {})),
      plot_paper_writing_effort_distribution),
     ("agent_group_comparison", _has_groups, plot_agent_group_comparison),
+    ("overview", _has_groups, plot_overview),
     ("ac_source",
      lambda h: bool(h.scalars.get("writing_held_ac") or h.scalars.get("review_held_ac")),
      plot_ac_source),
@@ -2955,6 +3133,9 @@ def plot_all(
         "agent_group_comparison": plot_agent_group_comparison(
             history, os.path.join(outdir, "agent_group_comparison.png"), show=show
         ),
+        "overview": plot_overview(
+            history, os.path.join(outdir, "overview.png"), show=show
+        ),
         "review_benefit": plot_review_benefit(
             history, os.path.join(outdir, "review_benefit.png"), show=show
         ),
@@ -2993,6 +3174,11 @@ def plot_all(
         ),
         "paper_quality_vs_ac": plot_paper_quality_vs_ac(
             history, os.path.join(outdir, "paper_quality_vs_ac.png"), show=show
+        ),
+        "paper_quality_vs_citations": plot_paper_quality_vs_citations(
+            history,
+            os.path.join(outdir, "paper_quality_vs_citations.png"),
+            show=show,
         ),
         "paper_quality_vs_review_faith": plot_paper_quality_vs_review_faith(
             history,

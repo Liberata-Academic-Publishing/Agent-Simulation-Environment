@@ -51,7 +51,10 @@ CLI flags for one-off overrides.
   both `run_simulation.py` and the static `docs/` gallery compare heuristic,
   random, probabilistic, RL, and low-talent RL agent outcomes.
 - **RL settings** live in `SimConfig` too (`rl_backend`, `rl_epsilon`,
-  `rl_gamma`, reward weights). Continuous tabular/linear RL uses `train_rl.py`;
+  `rl_gamma`, reward weights). The RL price feature is log10-scaled over
+  `rl_share_feature_min`..`rl_share_feature_max` (`share_feature` in `QLearningAgent.py`) so
+  offers of different magnitudes land in different tabular buckets; retrain
+  policies after changing it or the pricing economics. Continuous tabular/linear RL uses `train_rl.py`;
   discrete 3-action RL (write / bad claim / good claim) uses
   `train_discrete_rl.py` and `DiscreteQLearningAgent`. Low-talent RL agents
   (`LowTalentQLearningAgent`) load a separate policy trained with
@@ -81,6 +84,13 @@ CLI flags for one-off overrides.
 - `docs/` - static GitHub Pages gallery of saved runs (`docs/data/<run_id>/`).
 
 ## Commands
+
+For the integrated fixed-strategy experiment (no RL training), use
+`python run_talent_comparison.py --steps 1000 --seeds 11`.
+It enables shared quality/rate talents with publication experience and uses the
+configured citation system. Outputs go to `experiments/fixed_strategy_integrated`.
+Future opt-in training: `python train_rl.py --shared-talents --num-rl 80 --horizon 30 --no-archive`.
+Do not run training when the user requests only fixed-strategy simulation.
 
 ```bash
 # Run a simulation (prompts to archive afterward)

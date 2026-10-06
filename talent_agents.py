@@ -63,4 +63,6 @@ def build_talent_cohorts(count_per_group: int = SIM.talent_agents_per_group):
         for rate_label, rate in (("low", SIM.talent_low), ("high", SIM.talent_high)):
             label = f"quality_{quality_label}_rate_{rate_label}"
             groups[label] = [TalentAgent(quality, rate, f"{label}_{i}") for i in range(count_per_group)]
+            for agent in groups[label]:
+                agent.history_group = label
     return groups

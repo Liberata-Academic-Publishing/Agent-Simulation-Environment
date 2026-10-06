@@ -206,6 +206,12 @@ class SimConfig:
     rl_reward_ac_weight: float = 1.0      # weight on Δ academic capital (citation AC)
     rl_reward_rank_weight: float = 0.0     # weight on Δ AC percentile rank (0..1)
     rl_reward_accrual_weight: float = 20.0  # weight on Δ expected citation AC per timestep
+    # Range of the RL price feature. Offered review shares are log10-scaled
+    # from ``rl_share_feature_min`` (-> 0) to ``rl_share_feature_max`` (-> 1)
+    # and clipped outside it. The min matches the 0.01% offer floor; observed
+    # accepted offers run ~0.4%--50% (median ~3%).
+    rl_share_feature_min: float = 1e-4
+    rl_share_feature_max: float = 0.5
     rl_autoload_policy: bool = True  # auto-load the saved baseline for RL agents
     rl_low_talent_autoload_policy: bool = True  # auto-load low-talent RL policy
     talent_min: float = 0.6         # default talent spread; CLI can widen/narrow it

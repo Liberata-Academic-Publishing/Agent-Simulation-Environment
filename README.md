@@ -257,6 +257,76 @@ write to the dedicated experiment directory rather than replacing `runs/`.
 
 ## Publication experience experiment (2026-09-28)
 
+### Integrated fixed-strategy entry point (2026-10-05)
+
+Use this entry point to run shared quality/rate talents, publication experience,
+and citations together without training or loading any RL policy:
+
+```bash
+python run_talent_comparison.py --steps 1000 --seeds 11
+```
+
+For the existing visualization website, use the main simulation entry point:
+
+```bash
+python run_simulation.py --fixed-strategy --timesteps 1000 --seed 11 --name "Fixed strategy: talents + experience + citations"
+```
+
+This generates standard charts and history in `runs/`, then exports gallery
+charts and history to `docs/data/<run_id>/` and updates `docs/data/index.json`.
+Publish those gallery files through the normal GitHub Pages workflow to update
+the online website. Local archival alone does not publish the live site.
+Four talent cohorts are separate groups in the existing comparison charts.
+Additional per-agent and market metrics are saved as `fixed_strategy_metrics.json`
+in both `runs/` and the gallery run directory. Use `--no-archive` to skip export.
+`--agents-per-group` defaults to 20. Fixed mode uses its own continuous,
+50-unit (configurable in config.py), no-initial-paper conditions and ignores
+legacy agent-count/policy/market-mode flags; it never loads RL policies.
+
+Defaults: four equal cohorts (20 agents each), low/high talent means 0.6/1.4,
+Gaussian sigmas 0.2, experience alpha=0.30 and h=9, no seeded papers, continuous
+mode, fixed 50-unit manuscripts, no merit assignment, and forecast horizon 30.
+The fixed strategy publishes, seeks one good-faith review, and writes when none
+is available. Config defaults control experience and citation parameters.
+Use `--agents-per-group`, `--seeds`, `--steps`, and `--output` for run overrides.
+The default output is `experiments/fixed_strategy_integrated`; repeated runs
+overwrite that output, so use a separate output directory to keep a run.
+
+`results.json` includes per-agent base/effective talents, publication counts,
+experience, citations and capital, plus listing-to-claim wait statistics,
+unclaimed paper ages, good/bad counts, and citation AC totals. `comparison.png`
+shows cohort outcomes. Empty review/wait samples are not evidence of zero wait:
+market statistics use null when no claims exist. All-good reviews are prescribed
+by the strategy, not an emergent finding.
+
+Permanent reviews now persist their citation bonus, just as decay reviews do.
+Existing shared-talent quality improvement is retained: citation weighting uses
+both the improved quality and the separate review bonus. Author self-citation
+remains allowed. This entry point starts with no papers and therefore does not
+depend on the legacy initial-listing behavior.
+
+Verified integrated run: `experiments/fixed_strategy_integrated/2026-10-05_seed11/`.
+It produces 1577 papers, 31191 citations, 1576 total AC, a 0.231-step mean market
+wait, and 1562 good / 0 bad completed reviews. This is not directly comparable
+to the archived pre-citation economics.
+
+Future training is separate and must be explicitly invoked (not run as part of
+this experiment):
+
+```bash
+python train_rl.py --shared-talents --num-rl 80 --horizon 30 --no-archive
+```
+
+This option enables the same four ability combinations, experience, citations,
+zero seed papers, fixed manuscript effort, and no merit assignment in training
+and greedy evaluation. Use agent counts divisible by four for balanced groups.
+Policies save separately as `policies/policy_<backend>_shared_talents.*`.
+It does not redesign RL state/features or automatically configure the legacy
+`run_simulation.py` entry point; policy quality still needs future evaluation.
+No RL training was performed for the integrated fixed-strategy run.
+
+### Archived calibration
+
 Agents that enable shared talent sampling through `configure_talents()` now
 multiply both base talent means by `1 + alpha * n / (n + h)`. Defaults in
 `config.py` are `experience_alpha=0.30` and `experience_h=9.0`; alpha zero
