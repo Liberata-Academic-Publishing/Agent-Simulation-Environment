@@ -140,7 +140,6 @@
         <h2>Episode return (mean final AC)</h2>
         <img class="chart-img" id="img-episode_return" alt="Episode return">
       </div>
-      <div class="panel" id="panel-overview"><h2>Overview: review faith, capital, and inequality by agent type</h2><img class="chart-img" id="img-overview" alt="Overview: good-faith share over time, academic capital, review behavior, and Gini by agent type"></div>
       <div class="panel"><h2>Academic capital per agent</h2><canvas id="agentChart"></canvas></div>
       <div class="panel" id="panel-capital-by-group"><h2>Academic capital by agent type</h2><img class="chart-img" id="img-agent_capital_by_group" alt="Academic capital by agent type"></div>
       <div class="panel" id="panel-talent-vs-ac"><h2>Portfolio accrual rate vs talent</h2><img class="chart-img" id="img-talent_vs_ac" alt="Portfolio accrual rate vs talent"></div>
@@ -983,7 +982,6 @@
     // maps to its PNG name + the canvas used only as a fallback for legacy runs
     // archived before charts were imaged.
     const STATIC_CHART_PANELS = [
-      { panel: "panel-overview", chart: "overview", imgId: "img-overview" },
       { panel: "panel-capital-by-group", chart: "agent_capital_by_group", imgId: "img-agent_capital_by_group" },
       { panel: "panel-talent-vs-ac", chart: "talent_vs_ac", imgId: "img-talent_vs_ac" },
       { panel: "panel-effort-vs-ac", chart: "mean_review_effort_vs_ac", imgId: "img-mean_review_effort_vs_ac" },
