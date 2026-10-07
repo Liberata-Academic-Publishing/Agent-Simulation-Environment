@@ -9,7 +9,7 @@ import sys
 from collections import Counter
 from dataclasses import asdict, replace
 
-from Agent import Agent
+from Agent import Agent, assign_rate_talents
 from config import (
     SIM,
     TRAIN,
@@ -891,6 +891,8 @@ def build_simulation(
         )
     )
 
+    if SIM.use_rate_talents:
+        assign_rate_talents(agents)
     seed_initial_papers(agents)
 
     return Environment(

@@ -900,14 +900,35 @@ class Agent(ABC):
         self.intrinsic_talent = quality  # compatibility for strategy estimates
         self.talent_sampling_enabled = True
 
+    def set_rate_talent(self, rate: float) -> None:
+        """Set working speed alone, leaving quality and experience untouched."""
+        rate = float(rate)
+        if not math.isfinite(rate) or rate <= 0:
+            raise ValueError("rate talent must be finite and positive")
+        self.rate_talent = rate
+
     @property
     def publication_count(self) -> int:
-        """Authored publications in this world, including seeded papers."""
-        return sum(p.author is self for p in Agent.all_papers)
+        """Authored publications in this world, including seeded papers.
+
+        Counted incrementally: papers are only ever appended to
+        ``Agent.all_papers``, so each call scans just the new ones.
+        """
+        papers = Agent.all_papers
+        cache = getattr(self, "_publication_cache", None)
+        if cache is None or cache[0] is not papers or cache[1] > len(papers):
+            cache = (papers, 0, 0)
+        _, seen, count = cache
+        for paper in papers[seen:]:
+            if paper.author is self:
+                count += 1
+        self._publication_cache = (papers, len(papers), count)
+        return count
 
     @property
     def experience_multiplier(self) -> float:
-        if not self.talent_sampling_enabled or SIM.experience_alpha == 0:
+        enabled = self.talent_sampling_enabled or SIM.use_experience_growth
+        if not enabled or SIM.experience_alpha == 0:
             return 1.0
         count = self.publication_count
         return 1.0 + SIM.experience_alpha * count / (count + SIM.experience_h)
@@ -927,11 +948,13 @@ class Agent(ABC):
 
     def sample_review_quality(self) -> float:
         """One independent quality draw per completed review; legacy multiplier 1."""
-        return self._sample_quality() if self.talent_sampling_enabled else 1.0
+        if self.talent_sampling_enabled or SIM.use_review_quality_draws:
+            return self._sample_quality()
+        return 1.0
 
     def _sample_rate(self) -> float:
         if not self.talent_sampling_enabled:
-            return 1.0
+            return self.effective_rate_talent
         return max(SIM.talent_min_rate, random.gauss(self.effective_rate_talent, SIM.talent_rate_sigma))
 
     def review_effort_delta(self) -> float:
@@ -946,7 +969,11 @@ class Agent(ABC):
 
     def paper_completion_threshold(self) -> float:
         if self.continuous_publish_by_threshold():
-            return self.continuous_paper_timesteps
+            if self.paper_effort_mode == PAPER_EFFORT_MODE_FIXED:
+                return self.continuous_paper_timesteps
+            # Each manuscript auto-publishes at its own sampled effort target.
+            self._ensure_next_paper_state()
+            return self.next_paper_required_effort
         self._ensure_next_paper_state()
         if self.next_paper_required_effort is not None:
             if (
@@ -972,3 +999,16 @@ class Agent(ABC):
         if math.isnan(effort) or math.isinf(effort) or effort < 0.0:
             return 0.0
         return effort
+
+
+def assign_rate_talents(
+    agents: list[Agent],
+    rng: random.Random | None = None,
+    rate_min: float = SIM.rate_talent_min,
+    rate_max: float = SIM.rate_talent_max,
+) -> None:
+    """Give each agent an independent uniform rate talent (working speed)."""
+    chooser = rng if rng is not None else random
+    lo, hi = min(rate_min, rate_max), max(rate_min, rate_max)
+    for agent in agents:
+        agent.set_rate_talent(chooser.uniform(lo, hi))

@@ -38,6 +38,25 @@ import config
 from dataclasses import replace
 from RandomAgent import ProbabilisticDiscreteAgent, RandomAgent
 
+# These tests pin the base mechanics: one effort unit per timestep and review
+# quality 1. The optional talent mechanisms are switched off here and covered
+# separately in ``TalentMechanismFlagsTest``.
+_BASE_MECHANICS_SIM = replace(
+    config.SIM,
+    use_experience_growth=False,
+    use_review_quality_draws=False,
+)
+_base_mechanics_patch = mock.patch("Agent.SIM", _BASE_MECHANICS_SIM)
+
+
+def setUpModule():
+    _base_mechanics_patch.start()
+
+
+def tearDownModule():
+    _base_mechanics_patch.stop()
+
+
 try:
     import matplotlib  # noqa: F401
 
@@ -1203,6 +1222,7 @@ class ContinuousThresholdPublishingTest(unittest.TestCase):
         agent = ScriptAgent("author")
         agent.configure_review_paradigm("continuous")
         agent.configure_continuous_publishing("threshold", 5.0)
+        agent.configure_paper_effort("fixed")
         for _ in range(9):
             records = agent.act_continuous()
             self.assertFalse(records[0].published)
@@ -1214,6 +1234,22 @@ class ContinuousThresholdPublishingTest(unittest.TestCase):
         self.assertEqual(len(Agent.all_papers), 1)
         self.assertEqual(agent.paper_progress, 0.0)
         self.assertAlmostEqual(Agent.all_papers[0].writing_effort, 5.0)
+
+    def test_uniform_mode_publishes_at_each_papers_sampled_target(self):
+        agent = ScriptAgent("author")
+        agent.configure_review_paradigm("continuous")
+        agent.configure_continuous_publishing("threshold", 50.0)
+        agent.configure_paper_effort("uniform", 50.0, 150.0)
+        for _ in range(4000):
+            agent.act_continuous()
+        papers = Agent.all_papers
+        self.assertGreater(len(papers), 3)
+        efforts = [p.writing_effort for p in papers]
+        self.assertTrue(all(50.0 <= e < 151.0 for e in efforts))
+        self.assertGreater(max(efforts) - min(efforts), 5.0)
+        for paper in papers:
+            self.assertGreaterEqual(paper.writing_effort, paper.required_writing_effort)
+            self.assertLess(paper.writing_effort, paper.required_writing_effort + 1.0)
 
     def test_research_finish_is_ignored_in_threshold_mode(self):
         agent = ScriptAgent("author", continuous=[("research_finish", None)])
@@ -1591,6 +1627,76 @@ class UtilityTest(unittest.TestCase):
         paths = visualize.plot_all(history, outdir)
         for path in paths.values():
             self.assertTrue(os.path.exists(path))
+
+
+class TalentMechanismFlagsTest(unittest.TestCase):
+    def setUp(self):
+        Agent.all_papers = []
+        Paper.reset_citation_market()
+        self.agent = RandomAgent(intrinsic_talent=1.0)
+
+    def _flags(self, **overrides):
+        flags = dict(
+            use_experience_growth=False,
+            use_review_quality_draws=False,
+        )
+        flags.update(overrides)
+        return mock.patch("Agent.SIM", replace(config.SIM, **flags))
+
+    def _publish(self, count):
+        for _ in range(count):
+            Agent.all_papers.append(Paper(author=self.agent, quality=1.0))
+
+    def test_rate_talent_sets_effort_without_noise(self):
+        self.agent.set_rate_talent(1.3)
+        self.assertAlmostEqual(self.agent.writing_effort_delta(), 1.3)
+        self.assertAlmostEqual(self.agent.review_effort_delta(), 1.3)
+
+    def test_experience_growth_scales_quality_and_rate(self):
+        self.agent.set_rate_talent(1.2)
+        self._publish(9)
+        with self._flags(use_experience_growth=True):
+            expected = 1.0 + config.SIM.experience_alpha * 9 / (9 + config.SIM.experience_h)
+            self.assertAlmostEqual(self.agent.experience_multiplier, expected)
+            self.assertAlmostEqual(self.agent.effective_rate_talent, 1.2 * expected)
+            self.assertAlmostEqual(self.agent.effective_quality_talent, expected)
+        self.assertEqual(self.agent.experience_multiplier, 1.0)
+
+    def test_review_quality_draws_toggle(self):
+        self.assertEqual(self.agent.sample_review_quality(), 1.0)
+        with self._flags(use_review_quality_draws=True):
+            draws = {self.agent.sample_review_quality() for _ in range(20)}
+        self.assertGreater(len(draws), 1)
+
+    def test_publication_count_tracks_appends_and_resets(self):
+        other = RandomAgent(intrinsic_talent=1.0)
+        self._publish(3)
+        Agent.all_papers.append(Paper(author=other, quality=1.0))
+        self.assertEqual(self.agent.publication_count, 3)
+        self._publish(2)
+        self.assertEqual(self.agent.publication_count, 5)
+        Agent.all_papers = []
+        self.assertEqual(self.agent.publication_count, 0)
+
+    def test_assign_rate_talents_is_bounded_and_seeded(self):
+        import random
+        from Agent import assign_rate_talents
+
+        agents = [RandomAgent(intrinsic_talent=1.0) for _ in range(50)]
+        assign_rate_talents(agents, random.Random(3), 0.6, 1.4)
+        rates = [a.rate_talent for a in agents]
+        self.assertTrue(all(0.6 <= r <= 1.4 for r in rates))
+        again = [RandomAgent(intrinsic_talent=1.0) for _ in range(50)]
+        assign_rate_talents(again, random.Random(3), 0.6, 1.4)
+        self.assertEqual(rates, [a.rate_talent for a in again])
+
+    def test_initial_paper_progress_is_staggered(self):
+        agents = [RandomAgent(intrinsic_talent=1.0) for _ in range(30)]
+        Environment(agents=agents, randomize_initial_paper_progress=True)
+        progress = [a.paper_progress for a in agents]
+        threshold = agents[0].paper_completion_threshold()
+        self.assertTrue(all(0.0 <= p < threshold for p in progress))
+        self.assertGreater(len(set(progress)), 1)
 
 
 if __name__ == "__main__":

@@ -51,6 +51,7 @@ class Environment:
         paper_effort_min: float = SIM.paper_effort_min,
         paper_effort_max: float = SIM.paper_effort_max,
         discrete_paper_timesteps: float = SIM.discrete_paper_timesteps,
+        randomize_initial_paper_progress: bool = SIM.randomize_initial_paper_progress,
         pricing_policy: str = SIM.pricing_policy,
         use_competition_adjusted_forecast: bool = SIM.use_competition_adjusted_forecast,
         use_scarcity_pricing: bool = SIM.use_scarcity_pricing,
@@ -89,6 +90,7 @@ class Environment:
         self.paper_effort_min = float(paper_effort_min)
         self.paper_effort_max = float(paper_effort_max)
         self.discrete_paper_timesteps = float(discrete_paper_timesteps)
+        self.randomize_initial_paper_progress = bool(randomize_initial_paper_progress)
         self.pricing_policy = validate_pricing_policy(pricing_policy)
         self.use_competition_adjusted_forecast = bool(use_competition_adjusted_forecast)
         self.use_scarcity_pricing = bool(use_scarcity_pricing)
@@ -501,6 +503,8 @@ class Environment:
                 )
             if hasattr(agent, "forecast_horizon_timesteps"):
                 agent.forecast_horizon_timesteps = self.forecast_horizon_timesteps
+            if self.randomize_initial_paper_progress and agent.paper_progress == 0.0:
+                agent.paper_progress = random.random() * agent.paper_completion_threshold()
 
     def _create_agent(
         self,

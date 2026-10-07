@@ -468,6 +468,7 @@ class History:
         self.agent_review_epsilon_history: dict[str, list[float]] = {}
         self.agent_groups: dict[str, str] = {}  # agent label -> class name
         self.agent_talent: dict[str, float] = {}
+        self.agent_rate_talent: dict[str, float] = {}
         self.paper_ac: dict[str, list[float]] = {}
         # Per-paper attributes (constant or final snapshot) for outcome charts.
         self.paper_quality: dict[str, float] = {}
@@ -549,6 +550,7 @@ class History:
             for agent in env.agents:
                 label = self._label(agent, "Agent")
                 self.agent_talent[label] = float(getattr(agent, "intrinsic_talent", 0.0))
+                self.agent_rate_talent[label] = float(getattr(agent, "rate_talent", 1.0))
         if self.track_papers:
             self._record_series(
                 env.papers,
@@ -806,6 +808,7 @@ class History:
             },
             "agent_groups": dict(self.agent_groups),
             "agent_talent": dict(self.agent_talent),
+            "agent_rate_talent": dict(self.agent_rate_talent),
             "paper_ac": paper_ac_out,
             "paper_final_ac": paper_final_ac,
             "paper_authors": dict(self.paper_authors),
@@ -1051,6 +1054,7 @@ class History:
                 "agent": agent_label,
                 "group": self.agent_groups.get(agent_label, "Agent"),
                 "talent": float(self.agent_talent.get(agent_label, 0.0)),
+                "rate_talent": float(self.agent_rate_talent.get(agent_label, 1.0)),
                 "final_capital": final_capital,
                 "ac_from_writing": max(0.0, final_capital - ac_from_reviewing),
                 "ac_from_reviewing": ac_from_reviewing,
@@ -1119,6 +1123,7 @@ class History:
             "agent_accrual_rate": {k: list(v) for k, v in self.agent_accrual_rate.items()},
             "agent_groups": dict(self.agent_groups),
             "agent_talent": dict(self.agent_talent),
+            "agent_rate_talent": dict(self.agent_rate_talent),
             "accepted_review_claims": [
                 {"timestep": d, "day": d, "price": p}
                 for (d, p) in self.accepted_review_claims
@@ -1200,6 +1205,9 @@ class History:
         history.agent_groups = dict(data.get("agent_groups") or {})
         history.agent_talent = {
             k: float(v) for k, v in (data.get("agent_talent") or {}).items()
+        }
+        history.agent_rate_talent = {
+            k: float(v) for k, v in (data.get("agent_rate_talent") or {}).items()
         }
 
         history.paper_ac = {

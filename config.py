@@ -45,8 +45,8 @@ class SimConfig:
     # to start every agent at zero capital.
     init_papers_per_agent: int = 2
     initial_listing_stagger_timesteps: int = 50
-    init_ac_min: float = 0
-    init_ac_max: float = 0
+    init_ac_min: float = 0.0
+    init_ac_max: float = 2.0     # ~ one typical paper's lifetime citation AC
     init_accrual_min: float = 0.8
     init_accrual_max: float = 1.5
 
@@ -136,8 +136,8 @@ class SimConfig:
     review_paradigm: str = "continuous"       # "continuous" | "discrete"
     review_effort_per_timestep: float = 1.0     # effort added per review timestep
     writing_effort_per_timestep: float = 1.0    # continuous writing effort per timestep
-    min_review_effort_threshold: float = 3.0    # minimum valid review/share effort
-    good_faith_review_threshold: float = 5.0    # continuous-mode classification
+    min_review_effort_threshold: float = 1.0    # minimum valid review/share effort
+    good_faith_review_threshold: float = 3.0    # continuous-mode classification
     bad_review_timesteps: float = 1.0           # discrete bad-faith duration (T_B)
     # Fallback when continuous publishing is ``choice``; otherwise derived from
     # ``good_faith_review_threshold`` (see ``discrete_good_review_timesteps``).
@@ -165,18 +165,23 @@ class SimConfig:
     # Continuous writing: "choice" = agent picks when to finish/list; "threshold"
     # = auto-publish after a fixed amount of writing effort (no early finish).
     continuous_publishing: str = "threshold"       # "choice" | "threshold"
-    continuous_paper_timesteps: float = 50.0    # writing effort to auto-publish
+    continuous_paper_timesteps: float = 50.0    # auto-publish effort when paper_effort_mode = "fixed"
     # Fallback when continuous publishing is ``choice``; otherwise derived from
     # ``continuous_paper_timesteps`` (see ``discrete_manuscript_timesteps``).
     discrete_paper_timesteps: float = 200.0
     discrete_writing_effort_per_timestep: float = 1.0
     # Paper effort target for each manuscript. ``fixed`` preserves the existing
-    # thresholds above; ``uniform`` samples once per paper from the 50-150 band
-    # discussed in sync; ``quality_scaled`` maps higher sampled paper quality to
-    # a larger target inside that same band.
-    paper_effort_mode: str = "quality_scaled"             # "fixed" | "uniform" | "quality_scaled"
-    paper_effort_min: float = 130.0
-    paper_effort_max: float = 170.0
+    # thresholds above; ``uniform`` samples once per paper from
+    # [paper_effort_min, paper_effort_max]; ``quality_scaled`` maps higher
+    # sampled paper quality to a larger target inside that band. With
+    # threshold publishing, a non-fixed mode replaces continuous_paper_timesteps.
+    paper_effort_mode: str = "uniform"             # "fixed" | "uniform" | "quality_scaled"
+    paper_effort_min: float = 50.0
+    paper_effort_max: float = 150.0
+    # Start each agent partway through its first paper (uniform in
+    # [0, completion threshold)) so first publications, and the citation AC
+    # they pay out, are staggered instead of arriving in synchronized waves.
+    randomize_initial_paper_progress: bool = True
     # Continuous-mode asymptotic writing model: a paper's accrual rate approaches
     # its quality-defined ceiling as accumulated writing effort grows. Higher k
     # reaches the ceiling faster (k=0.2 -> ~63% at 5 ts, ~86% at 10 ts).
@@ -216,6 +221,19 @@ class SimConfig:
     rl_low_talent_autoload_policy: bool = True  # auto-load low-talent RL policy
     talent_min: float = 0.6         # default talent spread; CLI can widen/narrow it
     talent_max: float = 1.4
+    # Rate talent (working speed), independent of quality talent. When enabled,
+    # each agent gets a uniform draw from [rate_talent_min, rate_talent_max];
+    # its writing and review effort per timestep scale by that rate.
+    use_rate_talents: bool = True
+    rate_talent_min: float = 0.6
+    rate_talent_max: float = 1.4
+    # Talent mechanisms for agents outside the fixed-strategy cohorts (those
+    # cohorts always use all three). Experience growth multiplies quality and
+    # rate talent by 1 + experience_alpha * n / (n + experience_h) after n
+    # publications. Review quality draws scale each review's epsilon by a
+    # N(reviewer quality talent, quality_sigma) draw instead of 1.
+    use_experience_growth: bool = True
+    use_review_quality_draws: bool = True
     low_talent_value: float = 0.3   # fixed intrinsic talent for low-talent RL agents
     policies_dir: str = "policies"
 

@@ -29,7 +29,7 @@ import random
 import sys
 from typing import Any
 
-from Agent import Agent
+from Agent import Agent, assign_rate_talents
 from config import SIM, TRAIN, default_policy_path, default_low_talent_policy_path
 from Environment import Environment
 from HeuristicAgent import HeuristicAgent
@@ -111,6 +111,8 @@ def build_env(
         for i in range(num_heuristic)
     ]
     agents: list[Agent] = [*rl_agents, *heuristics]
+    if SIM.use_rate_talents:
+        assign_rate_talents(agents, rng)
 
     environment_options = {}
     if shared_talents:
