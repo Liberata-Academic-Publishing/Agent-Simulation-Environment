@@ -4,6 +4,12 @@ Same action space, feature vector, and reward function as ``QLearningAgent``,
 but uses a small ReLU MLP with experience replay and a target network instead of
 tabular or linear Q backends. Numpy-only (no PyTorch dependency).
 
+The action values are a dueling head: one stream for the state's value and one
+for each action's advantage, so a review that pays nothing can sit below writing
+without both actions having to store the whole return. Targets are Double DQN
+over an n-step return. The online network picks the next action and the target
+network scores it. A zero-share review adds nothing to that return.
+
 Training is offline-ish: transitions are stored in a replay buffer and the
 network is updated in mini-batches via ``train_dqn.py`` or online during a
 simulation run when ``learning=True``.
@@ -34,48 +40,72 @@ def _copy_params(params: list[tuple[np.ndarray, np.ndarray]]) -> list[tuple[np.n
     return [(W.copy(), b.copy()) for W, b in params]
 
 
-def _forward(
+def _forward_trunk(
     x: np.ndarray, params: list[tuple[np.ndarray, np.ndarray]]
 ) -> tuple[np.ndarray, list[np.ndarray], list[np.ndarray]]:
-    """Return output Q-values, pre-ReLU activations, and layer inputs."""
+    """ReLU trunk. Returns the last hidden state, pre-activations, and inputs."""
     if x.ndim == 1:
         x = x.reshape(1, -1)
     inputs: list[np.ndarray] = [x]
     pre_relu: list[np.ndarray] = []
     h = x
-    for layer_idx, (weight, bias) in enumerate(params):
+    for weight, bias in params:
         z = h @ weight + bias
-        if layer_idx < len(params) - 1:
-            pre_relu.append(z)
-            h = np.maximum(0.0, z)
-        else:
-            h = z
+        pre_relu.append(z)
+        h = np.maximum(0.0, z)
         inputs.append(h)
     return h, pre_relu, inputs
 
 
-def _apply_gradients(
-    params: list[tuple[np.ndarray, np.ndarray]],
-    pre_relu: list[np.ndarray],
-    inputs: list[np.ndarray],
-    grad_output: np.ndarray,
-    lr: float,
-) -> None:
-    """Backprop ``grad_output`` (batch, out_dim) through the MLP."""
-    grad = grad_output
-    for layer_idx in reversed(range(len(params))):
-        weight, bias = params[layer_idx]
-        layer_input = inputs[layer_idx]
-        grad_weight = layer_input.T @ grad / grad.shape[0]
-        grad_bias = grad.mean(axis=0)
-        weight -= lr * grad_weight
-        bias -= lr * grad_bias
-        if layer_idx > 0:
-            grad = (grad @ weight.T) * (pre_relu[layer_idx - 1] > 0)
+def _dueling_q(
+    hidden: np.ndarray,
+    value_head: tuple[np.ndarray, np.ndarray],
+    advantage_head: tuple[np.ndarray, np.ndarray],
+) -> np.ndarray:
+    """Q = V + A - mean(A). The mean keeps the advantage identified."""
+    value_w, value_b = value_head
+    advantage_w, advantage_b = advantage_head
+    value = hidden @ value_w + value_b
+    advantage = hidden @ advantage_w + advantage_b
+    return value + advantage - advantage.mean(axis=1, keepdims=True)
+
+
+def double_dqn_targets(
+    q_online_next: np.ndarray,
+    q_target_next: np.ndarray,
+    legal_masks: np.ndarray,
+    rewards: np.ndarray,
+    bootstraps: np.ndarray,
+) -> np.ndarray:
+    """Score the online network's greedy legal action with the target network."""
+    masked = np.where(legal_masks > 0.0, q_online_next, -np.inf)
+    greedy = np.argmax(masked, axis=1)
+    rows = np.arange(len(rewards))
+    chosen = q_target_next[rows, greedy]
+    valid = np.isfinite(masked[rows, greedy])
+    chosen = np.where(valid, chosen, 0.0)
+    return rewards + bootstraps * chosen
+
+
+_HUBER_DELTA = 1.0
+_GRAD_CLIP = 5.0
+
+
+def _huber_grad(errors: np.ndarray) -> np.ndarray:
+    """Gradient of mean Huber loss with respect to the prediction."""
+    clipped = np.clip(errors, -_HUBER_DELTA, _HUBER_DELTA)
+    return clipped / max(len(errors), 1)
+
+
+def _clip_grad(grad: np.ndarray) -> np.ndarray:
+    norm = float(np.linalg.norm(grad))
+    if norm > _GRAD_CLIP:
+        return grad * (_GRAD_CLIP / norm)
+    return grad
 
 
 class DQNBackend:
-    """Two-layer (configurable) MLP Q-network with replay and target net."""
+    """Dueling MLP with replay, a target network, and Double DQN targets."""
 
     def __init__(
         self,
@@ -95,28 +125,40 @@ class DQNBackend:
         self.hidden_size = hidden_size
         self.hidden_layers = hidden_layers
         self.train_steps = 0
-        self.replay: deque[
-            tuple[np.ndarray, int, float, np.ndarray, np.ndarray, bool]
-        ] = deque(maxlen=replay_capacity)
-        self.params = self._build_params()
+        self.replay: deque[tuple] = deque(maxlen=replay_capacity)
+        self.params = self._build_trunk()
+        width = self.hidden_size if self.hidden_layers else NUM_FEATURES
+        self.value_head = (np.zeros((width, 1), dtype=np.float64), np.zeros(1))
+        self.advantage_head = (
+            np.zeros((width, NUM_ACTIONS), dtype=np.float64),
+            np.zeros(NUM_ACTIONS, dtype=np.float64),
+        )
         self.target_params = _copy_params(self.params)
+        self.target_value_head = _copy_params([self.value_head])[0]
+        self.target_advantage_head = _copy_params([self.advantage_head])[0]
 
-    def _layer_sizes(self) -> list[int]:
+    def _build_trunk(self) -> list[tuple[np.ndarray, np.ndarray]]:
         sizes = [NUM_FEATURES]
         for _ in range(self.hidden_layers):
             sizes.append(self.hidden_size)
-        sizes.append(NUM_ACTIONS)
-        return sizes
-
-    def _build_params(self) -> list[tuple[np.ndarray, np.ndarray]]:
         params: list[tuple[np.ndarray, np.ndarray]] = []
-        for fan_in, fan_out in zip(self._layer_sizes(), self._layer_sizes()[1:]):
+        for fan_in, fan_out in zip(sizes, sizes[1:]):
             params.append((_he_init(fan_in, fan_out), np.zeros(fan_out, dtype=np.float64)))
         return params
 
+    def _q_bundle(self, features: np.ndarray, params, value_head, advantage_head):
+        single = features.ndim == 1
+        hidden, pre_relu, inputs = _forward_trunk(features, params)
+        q = _dueling_q(hidden, value_head, advantage_head)
+        if single:
+            q = q.reshape(-1)
+        return q, hidden, pre_relu, inputs
+
     def q_values(self, features: np.ndarray) -> np.ndarray:
-        q, _, _ = _forward(features, self.params)
-        return q.reshape(-1) if features.ndim == 1 else q
+        q, _, _, _ = self._q_bundle(
+            features, self.params, self.value_head, self.advantage_head
+        )
+        return q
 
     def remember(
         self,
@@ -127,7 +169,10 @@ class DQNBackend:
         next_legal_mask: np.ndarray,
         *,
         done: bool,
+        bootstrap: float | None = None,
     ) -> None:
+        if bootstrap is None:
+            bootstrap = 0.0 if done else self.gamma
         self.replay.append(
             (
                 state.astype(np.float64, copy=True),
@@ -135,7 +180,7 @@ class DQNBackend:
                 float(reward),
                 next_state.astype(np.float64, copy=True),
                 next_legal_mask.astype(np.float64, copy=True),
-                bool(done),
+                float(bootstrap),
             )
         )
 
@@ -149,29 +194,59 @@ class DQNBackend:
         rewards = np.array([item[2] for item in batch], dtype=np.float64)
         next_states = np.stack([item[3] for item in batch])
         legal_masks = np.stack([item[4] for item in batch])
-        dones = np.array([item[5] for item in batch], dtype=np.float64)
+        bootstraps = np.array([item[5] for item in batch], dtype=np.float64)
 
-        q_pred_all, pre_relu, inputs = _forward(states, self.params)
-        q_pred = q_pred_all[np.arange(self.batch_size), actions]
+        q_pred_all, hidden, pre_relu, inputs = self._q_bundle(
+            states, self.params, self.value_head, self.advantage_head
+        )
+        rows = np.arange(self.batch_size)
+        q_pred = q_pred_all[rows, actions]
 
-        q_next_all, _, _ = _forward(next_states, self.target_params)
-        masked = np.where(legal_masks > 0.0, q_next_all, -np.inf)
-        max_next = np.max(masked, axis=1)
-        max_next = np.where(np.isfinite(max_next), max_next, 0.0)
-        targets = rewards + self.gamma * max_next * (1.0 - dones)
+        q_online_next, _, _, _ = self._q_bundle(
+            next_states, self.params, self.value_head, self.advantage_head
+        )
+        q_target_next, _, _, _ = self._q_bundle(
+            next_states,
+            self.target_params,
+            self.target_value_head,
+            self.target_advantage_head,
+        )
+        targets = double_dqn_targets(
+            q_online_next, q_target_next, legal_masks, rewards, bootstraps
+        )
 
         errors = q_pred - targets
-        grad_output = np.zeros_like(q_pred_all)
-        grad_output[np.arange(self.batch_size), actions] = (
-            2.0 * errors / self.batch_size
-        )
-        _apply_gradients(self.params, pre_relu, inputs, grad_output, self.lr)
+        grad_q = np.zeros_like(q_pred_all)
+        grad_q[rows, actions] = _huber_grad(errors)
+        self._apply(hidden, pre_relu, inputs, grad_q)
 
         self.train_steps += 1
         if self.train_steps % self.target_sync == 0:
             self.target_params = _copy_params(self.params)
+            self.target_value_head = _copy_params([self.value_head])[0]
+            self.target_advantage_head = _copy_params([self.advantage_head])[0]
 
         return float(np.mean(errors * errors))
+
+    def _apply(self, hidden, pre_relu, inputs, grad_q: np.ndarray) -> None:
+        """Backprop a dueling Q gradient into the advantage, value, and trunk."""
+        grad_value = grad_q.sum(axis=1, keepdims=True)
+        grad_advantage = grad_q - grad_q.mean(axis=1, keepdims=True)
+        value_w, value_b = self.value_head
+        advantage_w, advantage_b = self.advantage_head
+        grad = grad_value @ value_w.T + grad_advantage @ advantage_w.T
+        value_w -= self.lr * _clip_grad(hidden.T @ grad_value)
+        value_b -= self.lr * _clip_grad(grad_value.sum(axis=0))
+        advantage_w -= self.lr * _clip_grad(hidden.T @ grad_advantage)
+        advantage_b -= self.lr * _clip_grad(grad_advantage.sum(axis=0))
+        for layer_idx in reversed(range(len(self.params))):
+            weight, bias = self.params[layer_idx]
+            layer_input = inputs[layer_idx]
+            grad = grad * (pre_relu[layer_idx] > 0)
+            incoming = grad @ weight.T
+            weight -= self.lr * _clip_grad(layer_input.T @ grad)
+            bias -= self.lr * _clip_grad(grad.sum(axis=0))
+            grad = incoming
 
     def save(self, path: str) -> None:
         with open(path, "wb") as fh:
@@ -184,7 +259,11 @@ class DQNBackend:
                     "batch_size": self.batch_size,
                     "target_sync": self.target_sync,
                     "params": self.params,
+                    "value_head": self.value_head,
+                    "advantage_head": self.advantage_head,
                     "target_params": self.target_params,
+                    "target_value_head": self.target_value_head,
+                    "target_advantage_head": self.target_advantage_head,
                     "train_steps": self.train_steps,
                 },
                 fh,
@@ -193,6 +272,8 @@ class DQNBackend:
     def load(self, path: str) -> None:
         with open(path, "rb") as fh:
             data = pickle.load(fh)
+        if "value_head" not in data:
+            raise ValueError(f"DQN policy {path} is from before the dueling network")
         self.hidden_size = int(data["hidden_size"])
         self.hidden_layers = int(data["hidden_layers"])
         self.lr = float(data["lr"])
@@ -200,7 +281,11 @@ class DQNBackend:
         self.batch_size = int(data["batch_size"])
         self.target_sync = int(data["target_sync"])
         self.params = data["params"]
+        self.value_head = data["value_head"]
+        self.advantage_head = data["advantage_head"]
         self.target_params = data["target_params"]
+        self.target_value_head = data["target_value_head"]
+        self.target_advantage_head = data["target_advantage_head"]
         self.train_steps = int(data.get("train_steps", 0))
 
 
@@ -231,6 +316,7 @@ class DQNAgent(QLearningAgent):
         gamma: float = SIM.dqn_gamma,
         epsilon: float = SIM.dqn_epsilon,
         learning: bool = True,
+        n_step: int | None = None,
     ):
         backend = backend if backend is not None else make_dqn_backend()
         super().__init__(
@@ -245,6 +331,8 @@ class DQNAgent(QLearningAgent):
             epsilon=epsilon,
             learning=learning,
         )
+        self.n_step = max(1, int(SIM.dqn_n_step if n_step is None else n_step))
+        self._nstep: deque[tuple] = deque()
 
     @property
     def dqn_backend(self) -> DQNBackend:
@@ -253,28 +341,57 @@ class DQNAgent(QLearningAgent):
     def _learn_transition(self, features: np.ndarray, legal: list[int]) -> None:
         if not self.learning or self._last_features is None:
             return
-        reward = self._compute_reward()
-        self.dqn_backend.remember(
-            self._last_features,
-            int(self._last_action),
-            reward,
-            features,
-            legal_action_mask(legal),
-            done=False,
+        self._nstep.append(
+            (
+                self._last_features.copy(),
+                int(self._last_action),
+                self._compute_reward(),
+                features.copy(),
+                legal_action_mask(legal),
+            )
         )
-        self.dqn_backend.train_step()
+        self._flush_nstep(episode_done=False)
+
+    def _flush_nstep(self, episode_done: bool) -> None:
+        """Store an n-step return. A zero reward adds nothing to it."""
+        while self._nstep and (episode_done or len(self._nstep) >= self.n_step):
+            length = min(self.n_step, len(self._nstep))
+            window = list(self._nstep)[:length]
+            returns = 0.0
+            discount = 1.0
+            for _, _, reward, _, _ in window:
+                returns += discount * reward
+                discount *= self.gamma
+            reaches_end = episode_done and length == len(self._nstep)
+            state, action, _, _, _ = window[0]
+            _, _, _, next_state, mask = window[-1]
+            self.dqn_backend.remember(
+                state,
+                action,
+                returns,
+                next_state,
+                mask,
+                done=reaches_end,
+                bootstrap=0.0 if reaches_end else discount,
+            )
+            self.dqn_backend.train_step()
+            self._nstep.popleft()
+            if not episode_done:
+                break
 
     def end_episode(self) -> None:
         if self.learning and self._last_features is not None:
-            reward = self._compute_reward()
-            self.dqn_backend.remember(
-                self._last_features,
-                int(self._last_action),
-                reward,
-                np.zeros(NUM_FEATURES, dtype=np.float64),
-                np.zeros(NUM_ACTIONS, dtype=np.float64),
-                done=True,
+            self._nstep.append(
+                (
+                    self._last_features.copy(),
+                    int(self._last_action),
+                    self._compute_reward(),
+                    np.zeros(NUM_FEATURES, dtype=np.float64),
+                    np.zeros(NUM_ACTIONS, dtype=np.float64),
+                )
             )
-            self.dqn_backend.train_step()
+        if self.learning:
+            self._flush_nstep(episode_done=True)
+        self._nstep.clear()
         self._last_features = None
         self._last_action = None

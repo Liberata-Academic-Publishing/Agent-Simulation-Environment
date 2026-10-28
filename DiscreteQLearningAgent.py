@@ -33,7 +33,13 @@ from Paper import (
     REVIEW_PARADIGM_DISCRETE,
     Paper,
 )
-from QLearningAgent import share_feature
+from QLearningAgent import (
+    WritingTrace,
+    action_caused_deltas,
+    progress_potential,
+    share_feature,
+    snapshot_holdings,
+)
 
 DISCRETE_REVIEW_PARADIGM = REVIEW_PARADIGM_DISCRETE
 
@@ -79,6 +85,15 @@ class DiscreteTabularQ:
     def update(self, features: np.ndarray, action: int, target: float) -> None:
         q = self.table[self._key(features)]
         q[action] += self.alpha * (target - q[action])
+
+    def trace_token(self, features: np.ndarray) -> tuple[int, ...]:
+        return self._key(features)
+
+    def add_error(
+        self, token: tuple[int, ...], action: int, td_error: float, eligibility: float
+    ) -> None:
+        q = self.table[token]
+        q[action] += self.alpha * td_error * eligibility
 
     def save(self, path: str) -> None:
         with open(path, "wb") as fh:
@@ -187,7 +202,7 @@ class DiscreteQLearningAgent(HeuristicAgent):
         name: str | None = None,
         *,
         backend=None,
-        gamma: float = 0.95,
+        gamma: float = SIM.rl_gamma,
         epsilon: float = 0.1,
         learning: bool = True,
     ):
@@ -206,12 +221,16 @@ class DiscreteQLearningAgent(HeuristicAgent):
         self.gamma = gamma
         self.epsilon = epsilon
         self.learning = learning
+        self.trace_lambda = float(SIM.rl_trace_lambda)
+        self._writing_trace = WritingTrace()
 
         self._last_features: np.ndarray | None = None
         self._last_action: int | None = None
         self._last_capital: float = academic_capital
         self._last_rank: float = self._current_ac_rank()
         self._last_accrual_rate: float = self._portfolio_accrual_rate()
+        self._last_holdings: dict[int, tuple[float, float, float]] = snapshot_holdings(self)
+        self._last_progress_potential: float = progress_potential(self)
         self._pending_review_kind: str | None = None
 
     def configure_review_paradigm(self, review_paradigm: str) -> None:
@@ -256,9 +275,8 @@ class DiscreteQLearningAgent(HeuristicAgent):
 
     def end_episode(self) -> None:
         if self.learning and self._last_features is not None:
-            self.backend.update(
-                self._last_features, self._last_action, self._compute_reward()
-            )
+            self._spread_return(None, None)
+        self._writing_trace.clear()
         self._last_features = None
         self._last_action = None
         self._pending_review_kind = None
@@ -283,11 +301,41 @@ class DiscreteQLearningAgent(HeuristicAgent):
     def _learn_transition(self, features: np.ndarray, legal: list[int]) -> None:
         if not self.learning or self._last_features is None:
             return
+        self._spread_return(features, legal)
+
+    def _spread_return(
+        self, features: np.ndarray | None, legal: list[int] | None
+    ) -> None:
         reward = self._compute_reward()
-        q_next = self.backend.q_values(features)
-        max_next = max((q_next[action] for action in legal), default=0.0)
-        target = reward + self.gamma * max_next
-        self.backend.update(self._last_features, self._last_action, target)
+        if features is None or legal is None:
+            max_next = 0.0
+        else:
+            q_next = self.backend.q_values(features)
+            max_next = max((q_next[action] for action in legal), default=0.0)
+        current_q = float(
+            self.backend.q_values(self._last_features)[self._last_action]
+        )
+        delta = reward + self.gamma * max_next - current_q
+        writing = int(self._last_action) == int(DiscreteQAction.WRITE)
+        if self.trace_lambda > 0.0 and hasattr(self.backend, "add_error"):
+            if writing:
+                self._writing_trace.visit(
+                    self.backend.trace_token(self._last_features),
+                    int(self._last_action),
+                )
+                self._writing_trace.apply(self.backend, delta)
+            else:
+                self.backend.update(
+                    self._last_features,
+                    self._last_action,
+                    reward + self.gamma * max_next,
+                )
+                self._writing_trace.apply(self.backend, delta)
+            self._writing_trace.decay(self.gamma * self.trace_lambda)
+            return
+        self.backend.update(
+            self._last_features, self._last_action, reward + self.gamma * max_next
+        )
 
     def _peer_capitals(self) -> list[float]:
         return [agent.academic_capital for agent in Agent.all_agents]
@@ -304,19 +352,22 @@ class DiscreteQLearningAgent(HeuristicAgent):
         return total
 
     def _compute_reward(self) -> float:
-        delta_ac = self.academic_capital - self._last_capital
+        delta_ac, delta_accrual = action_caused_deltas(self)
         delta_rank = self._current_ac_rank() - self._last_rank
-        delta_accrual = self._portfolio_accrual_rate() - self._last_accrual_rate
         return (
             SIM.rl_reward_ac_weight * delta_ac
             + SIM.rl_reward_rank_weight * delta_rank
             + SIM.rl_reward_accrual_weight * delta_accrual
+            + self.gamma * progress_potential(self)
+            - self._last_progress_potential
         )
 
     def _remember_reward_baseline(self) -> None:
         self._last_capital = self.academic_capital
         self._last_rank = self._current_ac_rank()
         self._last_accrual_rate = self._portfolio_accrual_rate()
+        self._last_holdings = snapshot_holdings(self)
+        self._last_progress_potential = progress_potential(self)
 
     def _best_reviewable(
         self, exclude: Paper | None = None
@@ -326,7 +377,6 @@ class DiscreteQLearningAgent(HeuristicAgent):
             for paper in Agent.all_papers
             if paper is not exclude
             and self._can_review(paper)
-            and paper.offered_share(self) > 0.0
         ]
         if not reviewable:
             return None, 0.0, 0.0
@@ -338,7 +388,7 @@ class DiscreteQLearningAgent(HeuristicAgent):
         num_reviewable = sum(
             1
             for paper in Agent.all_papers
-            if self._can_review(paper) and paper.offered_share(self) > 0.0
+            if self._can_review(paper)
         )
         return np.array(
             [

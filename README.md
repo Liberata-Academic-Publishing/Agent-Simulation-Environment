@@ -320,7 +320,9 @@ python train_rl.py --shared-talents --num-rl 80 --horizon 30 --no-archive
 This option enables the same four ability combinations, experience, citations,
 zero seed papers, fixed manuscript effort, and no merit assignment in training
 and greedy evaluation. Use agent counts divisible by four for balanced groups.
-Policies save separately as `policies/policy_<backend>_shared_talents.*`.
+The best table, by greedy academic capital, saves to
+`policies/policy_<backend>_shared_talents.*`. Pass `--shared-policy` to train
+one shared table instead of one table per agent.
 It does not redesign RL state/features or automatically configure the legacy
 `run_simulation.py` entry point; policy quality still needs future evaluation.
 No RL training was performed for the integrated fixed-strategy run.
@@ -401,7 +403,7 @@ vice versa.
 
 
 ### Evaluating Policies
-To evaluate the policies trained, adding `--rl-freeze` or `--dqn-freeze` makes the agents act greedily according to the policies without further online learning during the simulation.
+To evaluate the policies trained, adding `--rl-freeze` or `--dqn-freeze` makes the agents act greedily according to the policies without further online learning during the simulation. Continuous training keeps the table with the highest greedy academic capital, and the simulation loads that policy.
 
 ```bash
 # Continuous tabular/linear Q-learning policy

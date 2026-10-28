@@ -76,7 +76,7 @@ def build_env(
     num_heuristic: int,
     horizon: int,
     seed: int,
-    gamma: float = 0.95,
+    gamma: float = SIM.rl_gamma,
     history: History | None = None,
     intrinsic_talent: float = 1.0,
 ) -> tuple[Environment, list[DiscreteQLearningAgent], list[HeuristicAgent]]:

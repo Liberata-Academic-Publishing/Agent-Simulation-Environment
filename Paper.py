@@ -681,14 +681,6 @@ class Paper:
         self.paper_quality = quality_multiplier(value)
 
     @property
-    def ac_accrual_rate(self) -> float:
-        return self.accrual_rate
-
-    @ac_accrual_rate.setter
-    def ac_accrual_rate(self, value: float):
-        self.accrual_rate = self._nonnegative_float(value, "ac_accrual_rate")
-
-    @property
     def completed_peer_reviews(self) -> int:
         """0 or 1 — a paper can be reviewed at most once."""
         return 1 if self.reviewed else 0
@@ -878,11 +870,9 @@ class Paper:
             self.review_completed_timestep = (
                 int(current_timestep) if current_timestep is not None else None
             )
-            if validate_review_bump_duration(SIM.review_bump_duration) == REVIEW_BUMP_DECAY:
-                self.base_accrual_rate = self.accrual_rate
-                self.refresh_accrual_rate(current_timestep)
-            else:
-                self.accrual_rate *= 1.0 + epsilon
+            # Snapshot the citation forecast. The bump lives on citation
+            # weight; the environment rebuilds accrual_rate from that weight.
+            self.base_accrual_rate = self.accrual_rate
             if agent.talent_sampling_enabled:
                 quality_delta = self.paper_quality * epsilon
                 self.paper_quality += quality_delta
@@ -896,9 +886,9 @@ class Paper:
                 "review_quality_delta": quality_delta,
                 "review_kind": completed_review_kind,
                 "accrual_rate": self.accrual_rate,
-                # Paper AC at the instant the review finished, before any
-                # accrual at the bumped rate. This is the counterfactual
-                # baseline A0 used by the reviewer-vs-author benefit metric.
+                # Paper AC at the instant the review finished. This is the
+                # counterfactual baseline A0 used by the reviewer-vs-author
+                # benefit metric.
                 "current_ac_at_review": self.current_ac,
                 "base_accrual_rate": self.base_accrual_rate,
                 "review_completed_timestep": self.review_completed_timestep,

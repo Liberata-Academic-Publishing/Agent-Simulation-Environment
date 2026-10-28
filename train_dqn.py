@@ -1,8 +1,9 @@
 """Train and evaluate the DQN agent on the Liberata market.
 
-Mirrors ``train_rl.py`` but uses ``DQNAgent`` with a shared replay-backed MLP
-backend. Self-play across short episodes with ε decay; the trained network is
-auto-saved to ``policies/policy_dqn.pkl``.
+Mirrors ``train_rl.py`` but uses ``DQNAgent`` with a shared replay-backed MLP.
+The network is dueling Double DQN with an n-step return, so a review that pays
+nothing does not inherit the maximum next value. Self-play uses ε decay. The
+trained network is saved to ``policies/policy_dqn.pkl``.
 
 Usage:
     python train_dqn.py
@@ -27,6 +28,7 @@ from train_rl import (
     mean_capital,
     mean_review_effort,
     prompt_and_archive_training,
+    rl_review_starts,
     save_training_outputs,
     seed_initial_papers,
 )
@@ -46,6 +48,7 @@ def build_env(
     review_paradigm: str = SIM.review_paradigm,
     gamma: float = SIM.dqn_gamma,
     history: History | None = None,
+    n_step: int = SIM.dqn_n_step,
 ) -> tuple[Environment, list[DQNAgent], list[HeuristicAgent]]:
     """Fresh env: shared-backend DQN agents vs. heuristic opponents."""
     rng = random.Random(seed)
@@ -60,6 +63,7 @@ def build_env(
             epsilon=epsilon,
             learning=learning,
             gamma=gamma,
+            n_step=n_step,
         )
         for i in range(num_dqn)
     ]
@@ -145,6 +149,7 @@ def train(args) -> None:
             review_paradigm=args.review_paradigm,
             gamma=args.gamma,
             history=history,
+            n_step=args.n_step,
         )
         env.run(args.timesteps)
         for agent in dqn_agents:
@@ -188,6 +193,7 @@ def train(args) -> None:
 
 
 def evaluate(backend, args) -> None:
+    history = History()
     env, dqn_agents, heuristics = build_env(
         backend=backend,
         epsilon=0.0,
@@ -197,16 +203,26 @@ def evaluate(backend, args) -> None:
         horizon=args.horizon,
         seed=args.seed + 10_000,
         review_paradigm=args.review_paradigm,
+        history=history,
+        n_step=args.n_step,
     )
     env.run(args.timesteps)
 
     dqn_ac = mean_capital(dqn_agents)
     heur_ac = mean_capital(heuristics)
+    starts, decisions = rl_review_starts(history, dqn_agents)
     print("\nEvaluation (greedy):")
     print(f"  DQN mean AC        = {dqn_ac:8.2f}")
     print(f"  Heuristic mean AC  = {heur_ac:8.2f}")
     if heur_ac:
         print(f"  DQN / Heuristic    = {dqn_ac / heur_ac:6.2%}")
+    if decisions:
+        print(
+            f"  DQN review starts  = {starts:8d} / {decisions} decisions "
+            f"({starts / decisions:6.2%})"
+        )
+    else:
+        print("  DQN review starts  =        0")
 
 
 def parse_args(argv=None):
@@ -228,6 +244,13 @@ def parse_args(argv=None):
     )
     p.add_argument("--lr", type=float, default=SIM.dqn_lr)
     p.add_argument("--gamma", type=float, default=SIM.dqn_gamma)
+    p.add_argument(
+        "--n-step",
+        dest="n_step",
+        type=int,
+        default=SIM.dqn_n_step,
+        help="Reward steps in each target. A zero-share review adds nothing.",
+    )
     p.add_argument("--batch-size", dest="batch_size", type=int, default=SIM.dqn_batch_size)
     p.add_argument(
         "--target-sync", dest="target_sync", type=int, default=SIM.dqn_target_sync

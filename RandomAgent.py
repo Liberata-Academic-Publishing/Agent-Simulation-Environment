@@ -44,7 +44,7 @@ class RandomAgent(Agent):
         reviewable = [
             p
             for p in Agent.all_papers
-            if self._can_review(p) and p.offered_share(self) > 0.0
+            if self._can_review(p)
         ]
         if not reviewable:
             return None
@@ -71,7 +71,7 @@ class RandomAgent(Agent):
         reviewable = [
             p
             for p in Agent.all_papers
-            if self._can_review(p) and p.offered_share(self) > 0.0
+            if self._can_review(p)
         ]
         if reviewable and random.random() < self.claim_probability:
             return (CONTINUOUS_CLAIM, random.choice(reviewable))

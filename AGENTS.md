@@ -54,8 +54,11 @@ CLI flags for one-off overrides.
   `rl_gamma`, reward weights). The RL price feature is log10-scaled over
   `rl_share_feature_min`..`rl_share_feature_max` (`share_feature` in `QLearningAgent.py`) so
   offers of different magnitudes land in different tabular buckets; retrain
-  policies after changing it or the pricing economics. Continuous tabular/linear RL uses `train_rl.py`;
-  discrete 3-action RL (write / bad claim / good claim) uses
+  policies after changing it or the pricing economics. Continuous tabular/linear RL uses `train_rl.py`.
+  Each training agent has its own Q table, so one agent's update does not change
+  the others; pass `--shared-policy` for the old single table. The greedy
+  evaluation keeps the table with the highest academic capital and saves it to
+  `policies/policy_<backend>`. Discrete 3-action RL (write / bad claim / good claim) uses
   `train_discrete_rl.py` and `DiscreteQLearningAgent`. Low-talent RL agents
   (`LowTalentQLearningAgent`) load a separate policy trained with
   `train_rl.py --low-talent` (saved to `policies/policy_<backend>_low_talent`).

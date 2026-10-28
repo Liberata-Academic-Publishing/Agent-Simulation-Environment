@@ -66,7 +66,7 @@ class HeuristicAgent(Agent):
         listed = [
             paper
             for paper in Agent.all_papers
-            if self._can_review(paper) and paper.offered_share(self) > 0.0
+            if self._can_review(paper)
         ]
         if not listed:
             return None
@@ -119,7 +119,7 @@ class HeuristicAgent(Agent):
         listed = [
             paper
             for paper in Agent.all_papers
-            if self._can_review(paper) and paper.offered_share(self) > 0.0
+            if self._can_review(paper)
         ]
         best = max(listed, key=self._score_claim) if listed else None
         claim_value = self._expected_claim_value(best) if best is not None else 0.0
@@ -211,7 +211,7 @@ class HeuristicAgent(Agent):
         """True when this agent would try to claim ``paper`` if it could win."""
         if self.active_review_paper is not None:
             return False
-        if not self._can_review(paper) or paper.offered_share(self) <= 0.0:
+        if not self._can_review(paper):
             return False
         claim_value = self._expected_claim_value(paper)
         return claim_value > 0.0 and claim_value > self._write_value()
@@ -225,8 +225,6 @@ class HeuristicAgent(Agent):
         if paper is None:
             return None
         if not paper.review_available or not self._can_review(paper):
-            return None
-        if paper.offered_share(self) <= 0.0:
             return None
         return paper
 

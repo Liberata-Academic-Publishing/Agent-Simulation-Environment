@@ -52,9 +52,9 @@ class SimConfig:
 
     # --- Paper economics -------------------------------------------------
     default_accrual_rate: float = 1.0       # forecast calibration before any environment runs
-    default_review_share: float = 0.005      # legacy fallback when fair-market pricing is off
+    default_review_share: float = 0.0        # legacy fallback when fair-market pricing is off
     default_max_reviewer_share: float = 1.0        # max share per review (100% of author stake)
-    min_offer_share: float = 0.0001          # floor on review offers (0%)
+    min_offer_share: float = 0.0             # floor on review offers (0%)
     use_fair_market_pricing: bool = True
     prior_review_epsilon: float = 0.05      # prior reviewer effect before review history exists
     # Author-side pricing policy. ``static_fair_market`` preserves the current
@@ -80,7 +80,7 @@ class SimConfig:
     fast_claim_max_wait: float | None = 0.0
     # Reviewer's fraction of incremental review surplus in fair-market offers
     # (author keeps ``1 - reviewer_surplus_share`` of the bump-created value).
-    reviewer_surplus_share: float = 0.5
+    reviewer_surplus_share: float = 0.0
 
     # --- Market economics (optional; all off preserves legacy behavior) ----
     use_competition_adjusted_forecast: bool = True
@@ -202,15 +202,27 @@ class SimConfig:
     # --- RL agents (part of the simulation) ------------------------------
     rl_backend: str = "tabular"     # "tabular" | "linear"
     rl_epsilon: float = 0.1         # exploration when learning online
-    rl_gamma: float = 0.95          # TD discount
-    # Reward = Δ citation AC (AC only comes from citations) plus a shaping
-    # term on Δ expected citation AC per timestep. Citations arrive long after
-    # a paper is written or reviewed, so the shaping term (weighted by
-    # ~1/(1 - rl_gamma)) credits actions with the discounted citation AC they
-    # are expected to bring. Set it to 0 for a pure realized-AC reward.
+    rl_gamma: float = 0.5           # one wasted step keeps half the return
+    # How far a publication payment reaches back along writing steps.
+    # Each earlier write receives the payment discounted by ``rl_gamma``.
+    # Review actions are not eligible. 0 keeps the one-step update only.
+    rl_trace_lambda: float = 1.0
+    # Reward uses the capital and forecast change caused by ownership the
+    # action gained or lost. Citations on shares the agent already held are
+    # left out, so a review is credited only for share it gained. The shaping
+    # term stands in for the future citation stream of that new ownership.
+    # It stays at 20 so the publication payment does not shrink when
+    # ``rl_gamma`` drops. Set it to 0 for realized capital from ownership
+    # changes only.
     rl_reward_ac_weight: float = 1.0      # weight on Δ academic capital (citation AC)
     rl_reward_rank_weight: float = 0.0     # weight on Δ AC percentile rank (0..1)
     rl_reward_accrual_weight: float = 20.0  # weight on Δ expected citation AC per timestep
+    # Φ is this weight times manuscript progress, in [0, 1]. The reward adds
+    # γΦ(next) − Φ(now). A step that does not advance the paper is charged
+    # (1−γ)Φ, and publishing resets Φ to 0. The accrual payment does not cover
+    # that drop, so a nearly finished manuscript makes continuing a review
+    # score better than writing. 0 leaves manuscript progress out of the reward.
+    rl_progress_potential: float = 0.0
     # Range of the RL price feature. Offered review shares are log10-scaled
     # from ``rl_share_feature_min`` (-> 0) to ``rl_share_feature_max`` (-> 1)
     # and clipped outside it. The min matches the 0.01% offer floor; observed
@@ -247,11 +259,14 @@ class SimConfig:
     dqn_hidden_size: int = 64
     dqn_hidden_layers: int = 2
     dqn_lr: float = 0.001
-    dqn_gamma: float = 0.95
+    dqn_gamma: float = 0.5
     dqn_epsilon: float = 0.1
     dqn_replay_capacity: int = 10000
     dqn_batch_size: int = 32
     dqn_target_sync: int = 200
+    # Steps of real reward in each replay target. A zero-share review
+    # contributes nothing, so a longer window discounts the later publication.
+    dqn_n_step: int = 8
     dqn_autoload_policy: bool = True
 
 
@@ -269,7 +284,7 @@ class TrainConfig:
     """Defaults for the training harness (train_rl.py) — kept separate from the
     simulation parameters above."""
 
-    episodes: int = 200
+    episodes: int = 1000
     timesteps: int = 1000
     num_rl: int = 10
     num_heuristic: int = 0
@@ -332,13 +347,31 @@ def discrete_manuscript_timesteps() -> float:
 
 
 def default_policy_path(backend_kind: str) -> str:
-    """Canonical on-disk path for a trained policy of the given backend.
+    """Canonical on-disk path for the trained policy of the given backend.
 
-    Tabular pickles (``.pkl``); linear uses ``np.save`` (``.npy``). This is the
-    one implementation both train_rl.py (save) and run_simulation.py (load) use.
+    Tabular pickles (``.pkl``); linear uses ``np.save`` (``.npy``). Independent
+    training writes the single best table here.
     """
     ext = ".pkl" if backend_kind == "tabular" else ".npy"
     return os.path.join(SIM.policies_dir, f"policy_{backend_kind}{ext}")
+
+
+def list_independent_policy_files(directory: str) -> list[str]:
+    """Sorted ``agent_<n>.pkl`` / ``agent_<n>.npy`` files in ``directory``."""
+    if not os.path.isdir(directory):
+        return []
+    found: list[tuple[int, str]] = []
+    for name in os.listdir(directory):
+        stem, ext = os.path.splitext(name)
+        if ext not in (".pkl", ".npy") or not stem.startswith("agent_"):
+            continue
+        try:
+            index = int(stem.removeprefix("agent_"))
+        except ValueError:
+            continue
+        found.append((index, os.path.join(directory, name)))
+    found.sort()
+    return [path for _, path in found]
 
 
 def default_dqn_policy_path() -> str:

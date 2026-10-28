@@ -19,6 +19,7 @@ from config import (
     default_low_talent_discrete_policy_path,
     default_low_talent_policy_path,
     default_policy_path,
+    list_independent_policy_files,
 )
 import config as config_module
 from Environment import Environment
@@ -514,6 +515,30 @@ def build_discrete_rl_agents(
     return agents
 
 
+def _policy_load_paths(policy_path: str | None, count: int) -> tuple[list[str | None], str]:
+    """One load path per agent.
+
+    A directory yields a different file per agent. A single file is copied into
+    each agent's own backend, so later learning does not write one shared table.
+    """
+    if count <= 0:
+        return [], "starting from scratch"
+    if not policy_path:
+        return [None] * count, "starting from scratch"
+    if os.path.isdir(policy_path):
+        files = list_independent_policy_files(policy_path)
+        if not files:
+            return [None] * count, f"no policies in {policy_path}; starting from scratch"
+        paths = [files[i % len(files)] for i in range(count)]
+        source = f"loaded {len(files)} distinct policies from {policy_path}"
+        if count > len(files):
+            source += f" ({count} agents, policies repeat)"
+        return paths, source
+    if os.path.isfile(policy_path):
+        return [policy_path] * count, f"loaded baseline {policy_path}"
+    return [None] * count, f"policy {policy_path} not found; starting from scratch"
+
+
 def build_rl_agents(
     count: int,
     *,
@@ -523,31 +548,31 @@ def build_rl_agents(
     talent_min: float = SIM.talent_min,
     talent_max: float = SIM.talent_max,
 ) -> list[QLearningAgent]:
-    """Create independent RL agents (one private backend each).
+    """Create RL agents with one private backend each.
 
-    Each starts blank or, if ``policy_path`` points at an existing file, from
-    that saved baseline (then they diverge via their own online learning).
     ``run_simulation.py`` never writes policies back.
     """
     if count <= 0:
         return []
 
-    loaded = bool(policy_path) and os.path.exists(policy_path)
-    if policy_path and not loaded:
-        print(f"RL: policy {policy_path} not found; starting from scratch.")
+    paths, source = _policy_load_paths(policy_path, count)
+    if policy_path and all(path is None for path in paths):
+        print(f"RL: {source}.")
 
     agents: list[QLearningAgent] = []
     for i in range(count):
         backend = make_backend(backend_kind)
-        if loaded:
+        path = paths[i]
+        if path is not None:
             try:
-                backend.load(policy_path)
+                backend.load(path)
             except (ValueError, EOFError, OSError, KeyError):
                 # Policies from before the single-review overhaul are incompatible.
                 if i == 0:
-                    print(f"RL: policy {policy_path} is incompatible; using scratch.")
-                loaded = False
+                    print(f"RL: policy {path} is incompatible; using scratch.")
+                paths = [None] * count
                 backend = make_backend(backend_kind)
+                source = "starting from scratch"
         agents.append(
             QLearningAgent(
                 intrinsic_talent=_talent_for(
@@ -564,11 +589,8 @@ def build_rl_agents(
             )
         )
 
-    source = (
-        f"loaded baseline {policy_path}" if loaded else "starting from scratch"
-    )
     mode = "frozen (greedy)" if freeze else "learning online"
-    print(f"RL: {count} independent {backend_kind} agents, {source}, {mode}.")
+    print(f"RL: {count} separate {backend_kind} policies, {source}, {mode}.")
     return agents
 
 
@@ -584,24 +606,26 @@ def build_low_talent_rl_agents(
     if count <= 0:
         return []
 
-    loaded = bool(policy_path) and os.path.exists(policy_path)
-    if policy_path and not loaded:
-        print(f"Low-talent RL: policy {policy_path} not found; starting from scratch.")
+    paths, source = _policy_load_paths(policy_path, count)
+    if policy_path and all(path is None for path in paths):
+        print(f"Low-talent RL: {source}.")
 
     agents: list[LowTalentQLearningAgent] = []
     for i in range(count):
         backend = make_backend(backend_kind)
-        if loaded:
+        path = paths[i]
+        if path is not None:
             try:
-                backend.load(policy_path)
+                backend.load(path)
             except (ValueError, EOFError, OSError, KeyError):
                 if i == 0:
                     print(
-                        f"Low-talent RL: policy {policy_path} is incompatible; "
+                        f"Low-talent RL: policy {path} is incompatible; "
                         "using scratch."
                     )
-                loaded = False
+                paths = [None] * count
                 backend = make_backend(backend_kind)
+                source = "starting from scratch"
         agents.append(
             LowTalentQLearningAgent(
                 intrinsic_talent=low_talent_value,
@@ -613,12 +637,9 @@ def build_low_talent_rl_agents(
             )
         )
 
-    source = (
-        f"loaded baseline {policy_path}" if loaded else "starting from scratch"
-    )
     mode = "frozen (greedy)" if freeze else "learning online"
     print(
-        f"Low-talent RL: {count} independent {backend_kind} agents "
+        f"Low-talent RL: {count} separate {backend_kind} policies "
         f"(talent={low_talent_value:g}), {source}, {mode}."
     )
     return agents

@@ -158,7 +158,7 @@ class MarketplaceLifecycleTest(unittest.TestCase):
         share = paper.add_review(reviewer, MIN_REVIEW_EFFORT_THRESHOLD)
 
         self.assertGreater(share, 0.0)
-        self.assertGreater(paper.accrual_rate, 1.0)
+        self.assertEqual(paper.accrual_rate, 1.0)
         self.assertEqual(paper.completed_peer_reviews, 1)
         self.assertIn(reviewer, paper.share_distribution)
 
@@ -225,7 +225,7 @@ class EconomicsTest(unittest.TestCase):
         low.add_review(low_reviewer, MIN_REVIEW_EFFORT_THRESHOLD)
         high.add_review(high_reviewer, MIN_REVIEW_EFFORT_THRESHOLD + 3)
 
-        self.assertGreater(high.accrual_rate, low.accrual_rate)
+        self.assertGreater(high.review_bump_epsilon, low.review_bump_epsilon)
 
     def test_price_drops_for_higher_quality_papers(self):
         author = ScriptAgent("author")
@@ -320,17 +320,17 @@ class ReviewBumpDecayTest(unittest.TestCase):
     def test_decay_peak_matches_permanent_bump_at_review(self):
         author = ScriptAgent("author")
         reviewer = ScriptAgent("reviewer")
+        reviewer.sample_review_quality = lambda: 1.0
         effort = MIN_REVIEW_EFFORT_THRESHOLD + 2.0
         paper = _listed_paper(author, quality=1.0, accrual_rate=1.0)
         paper.update_price_table([reviewer], 1.0, 0.0)
-        expected_peak = paper.accrual_rate * (1.0 + review_accrual_bump(effort, 1.0))
 
         p1, p2, p3 = self._decay_patches()
         with p1, p2, p3:
             paper.start_review(reviewer, current_timestep=5)
             paper.finish_review(reviewer, effort, current_timestep=5)
 
-        self.assertAlmostEqual(paper.accrual_rate, expected_peak)
+        self.assertAlmostEqual(paper.accrual_rate, 1.0)
         self.assertAlmostEqual(paper.base_accrual_rate, 1.0)
         self.assertAlmostEqual(
             paper.review_bump_epsilon, review_accrual_bump(effort, 1.0)
@@ -1412,6 +1412,147 @@ class QLearningRewardTest(unittest.TestCase):
             SIM.rl_reward_accrual_weight * expected_accrual,
         )
 
+    def test_reward_ignores_citations_on_shares_already_held(self):
+        from config import SIM
+        from QLearningAgent import QLearningAgent
+
+        author = ScriptAgent("author")
+        paper = Paper(author=author, accrual_rate=1.0, current_ac=10.0)
+        reviewer = QLearningAgent(intrinsic_talent=1.0, learning=False)
+        paper.share_distribution[reviewer] = 0.5
+        reviewer.academic_capital = 5.0
+        Agent.all_papers = [paper]
+        Agent.all_agents = [author, reviewer]
+        reviewer._remember_reward_baseline()
+
+        paper.current_ac = 14.0
+        paper.accrual_rate = 1.4
+        reviewer.academic_capital = 7.0
+
+        self.assertAlmostEqual(reviewer._compute_reward(), 0.0)
+
+        paper.share_distribution[reviewer] = 0.5
+        gained = Paper(author=author, accrual_rate=2.0, current_ac=8.0)
+        gained.share_distribution[reviewer] = 0.25
+        Agent.all_papers.append(gained)
+        reviewer.academic_capital = 7.0 + 2.0
+
+        reward = reviewer._compute_reward()
+        self.assertAlmostEqual(
+            reward,
+            SIM.rl_reward_ac_weight * 2.0 + SIM.rl_reward_accrual_weight * 0.5,
+        )
+
+    def test_progress_potential_pays_a_writing_step_and_charges_a_stall(self):
+        from dataclasses import replace
+
+        import QLearningAgent as qmod
+        from Agent import Agent
+        from QLearningAgent import QLearningAgent
+
+        original = qmod.SIM
+        qmod.SIM = replace(original, rl_progress_potential=1.0)
+        try:
+            agent = QLearningAgent(intrinsic_talent=1.0, learning=False)
+            agent.gamma = 0.95
+            Agent.all_papers = []
+            Agent.all_agents = [agent]
+            threshold = agent.paper_completion_threshold()
+            agent.paper_progress = 0.0
+            agent._remember_reward_baseline()
+            agent.paper_progress = 0.2 * threshold
+            self.assertAlmostEqual(agent._compute_reward(), 0.95 * 0.2)
+
+            agent._remember_reward_baseline()
+            self.assertAlmostEqual(agent._compute_reward(), (0.95 - 1.0) * 0.2)
+
+            agent.paper_progress = 0.0
+            self.assertAlmostEqual(agent._compute_reward(), -0.2)
+        finally:
+            qmod.SIM = original
+
+    def test_publication_reward_reaches_earlier_write(self):
+        import numpy as np
+
+        from QLearningAgent import QAction, QLearningAgent
+
+        agent = QLearningAgent(intrinsic_talent=1.0, epsilon=0.0, learning=True)
+        agent.gamma = 0.95
+        agent.trace_lambda = 1.0
+        rewards = iter([0.0, 5.0])
+        agent._compute_reward = lambda: next(rewards)
+        early = np.zeros(9)
+        late = np.zeros(9)
+        late[0] = 1.0
+        legal = [int(QAction.WRITE)]
+
+        agent._last_features = early
+        agent._last_action = int(QAction.WRITE)
+        agent._learn_transition(late, legal)
+        agent._last_features = late
+        agent._last_action = int(QAction.WRITE)
+        agent._learn_transition(late, legal)
+
+        self.assertAlmostEqual(agent.backend.q_values(late)[QAction.WRITE], 0.5)
+        self.assertAlmostEqual(
+            agent.backend.q_values(early)[QAction.WRITE], 0.1 * 5.0 * 0.95
+        )
+
+    def test_review_action_does_not_join_the_writing_trace(self):
+        import numpy as np
+
+        from QLearningAgent import QAction, QLearningAgent
+
+        agent = QLearningAgent(intrinsic_talent=1.0, epsilon=0.0, learning=True)
+        agent.gamma = 0.95
+        agent.trace_lambda = 1.0
+        rewards = iter([0.0, 5.0])
+        agent._compute_reward = lambda: next(rewards)
+        early = np.zeros(9)
+        late = np.zeros(9)
+        late[0] = 1.0
+
+        agent._last_features = early
+        agent._last_action = int(QAction.WRITE)
+        agent._learn_transition(late, [int(QAction.WRITE), int(QAction.CLAIM)])
+        agent._last_features = late
+        agent._last_action = int(QAction.CLAIM)
+        agent._learn_transition(late, [int(QAction.WRITE), int(QAction.CLAIM)])
+
+        self.assertAlmostEqual(agent.backend.q_values(late)[QAction.CLAIM], 0.5)
+        self.assertAlmostEqual(agent.backend.q_values(late)[QAction.WRITE], 0.0)
+        self.assertAlmostEqual(
+            agent.backend.q_values(early)[QAction.WRITE], 0.1 * 5.0 * 0.95
+        )
+
+    def test_second_table_scores_the_action_the_first_table_picks(self):
+        import numpy as np
+
+        from QLearningAgent import QAction, QLearningAgent, make_backend
+
+        agent = QLearningAgent(intrinsic_talent=1.0, epsilon=0.0, learning=True)
+        agent.gamma = 0.95
+        agent.trace_lambda = 0.0
+        agent.backend_b = make_backend("tabular", alpha=0.1)
+        agent._compute_reward = lambda: 0.0
+        agent._online_pair = lambda: (
+            agent.backend, agent.backend_b, agent._writing_trace
+        )
+        late = np.zeros(9)
+        late[0] = 1.0
+        early = np.zeros(9)
+        legal = [int(QAction.WRITE), int(QAction.CLAIM)]
+        agent.backend.q_values(late)[QAction.CLAIM] = 5.0
+        agent.backend_b.q_values(late)[QAction.WRITE] = 1.0
+
+        agent._last_features = early
+        agent._last_action = int(QAction.WRITE)
+        agent._learn_transition(late, legal)
+
+        # The first table would bootstrap 0.95 * 5. The second table scores
+        # that claim at 0, so the write is not taught the inflated value.
+        self.assertAlmostEqual(agent.backend.q_values(early)[QAction.WRITE], 0.0)
+
 
 class LowTalentRLAgentsTest(unittest.TestCase):
     def test_low_talent_rl_agents_grouped_separately(self):
@@ -1527,6 +1668,47 @@ class DQNAgentTest(unittest.TestCase):
             np.testing.assert_allclose(before, after)
         finally:
             os.remove(path)
+
+    def test_double_dqn_scores_the_online_networks_choice(self):
+        import numpy as np
+
+        from DQNAgent import double_dqn_targets
+
+        online = np.array([[0.0, 5.0]])
+        target = np.array([[4.0, 0.2]])
+        mask = np.ones((1, 2))
+        got = double_dqn_targets(online, target, mask, np.array([0.0]), np.array([1.0]))
+        self.assertAlmostEqual(float(got[0]), 0.2)
+
+    def test_n_step_return_adds_nothing_for_a_zero_reward(self):
+        import numpy as np
+
+        from DQNAgent import DQNAgent, make_dqn_backend
+        from QLearningAgent import NUM_FEATURES
+
+        agent = DQNAgent(
+            intrinsic_talent=1.0,
+            backend=make_dqn_backend(batch_size=8),
+            gamma=0.5,
+            n_step=2,
+            learning=True,
+        )
+        rewards = iter([0.0, 4.0])
+        agent._compute_reward = lambda: next(rewards)
+        first = np.zeros(NUM_FEATURES)
+        second = np.ones(NUM_FEATURES)
+        agent._last_features = first
+        agent._last_action = 0
+        agent._learn_transition(second, [0, 1])
+        self.assertEqual(len(agent.dqn_backend.replay), 0)
+        agent._last_features = second
+        agent._last_action = 1
+        agent._learn_transition(first, [0, 1])
+        state, action, returns, _, _, bootstrap = agent.dqn_backend.replay[0]
+        self.assertEqual(action, 0)
+        self.assertAlmostEqual(returns, 0.5 * 4.0)
+        self.assertAlmostEqual(bootstrap, 0.25)
+        np.testing.assert_allclose(state, first)
 
 
 class UtilityTest(unittest.TestCase):

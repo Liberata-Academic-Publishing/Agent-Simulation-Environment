@@ -1,7 +1,8 @@
 """Reinforcement-learning agent for the single-review peer-review market.
 
-Reward = weighted Δ academic capital + weighted Δ AC percentile rank + weighted
-Δ portfolio accrual rate (share-weighted sum of owned papers' accrual rates).
+Reward = weighted change in academic capital and portfolio accrual caused by
+ownership this action gained or lost, plus weighted Δ AC percentile rank.
+Citations on shares the agent already held are not part of the reward.
 The agent learns *which action type* to take each timestep; the target
 paper for a claim is chosen by the inherited heuristic forecast, so the action
 space stays tiny and fixed.
@@ -97,6 +98,58 @@ def share_feature(share: float) -> float:
     return min(max(scaled, 0.0), 1.0)
 
 
+def progress_potential(agent) -> float:
+    """Φ(state): weight times how far the current manuscript has progressed.
+
+    A function of state only, so γΦ(next) − Φ(now) does not change the best action.
+    """
+    weight = float(SIM.rl_progress_potential)
+    if weight == 0.0:
+        return 0.0
+    threshold = float(agent.paper_completion_threshold())
+    if threshold <= 0.0:
+        return 0.0
+    fraction = min(max(float(agent.paper_progress) / threshold, 0.0), 1.0)
+    return weight * fraction
+
+
+def snapshot_holdings(agent) -> dict[int, tuple[float, float, float]]:
+    """Share, academic capital, and accrual rate of each paper ``agent`` owns."""
+    holdings: dict[int, tuple[float, float, float]] = {}
+    for paper in Agent.all_papers:
+        share = float(paper.share_distribution.get(agent, 0.0))
+        if share:
+            holdings[id(paper)] = (
+                share,
+                float(paper.current_ac),
+                float(paper.accrual_rate),
+            )
+    return holdings
+
+
+def action_caused_deltas(agent) -> tuple[float, float]:
+    """Capital and accrual changes caused by ownership the action changed.
+
+    Citations on shares the agent already held arrive whichever action it took.
+    Those are removed, so a review is rewarded only for share it actually gained.
+    """
+    delta_ac = agent.academic_capital - agent._last_capital
+    delta_accrual = agent._portfolio_accrual_rate() - agent._last_accrual_rate
+    holdings = getattr(agent, "_last_holdings", None) or {}
+    if not holdings:
+        return delta_ac, delta_accrual
+    exogenous_ac = 0.0
+    exogenous_accrual = 0.0
+    for paper in Agent.all_papers:
+        previous = holdings.get(id(paper))
+        if previous is None:
+            continue
+        old_share, old_ac, old_accrual = previous
+        exogenous_ac += old_share * (float(paper.current_ac) - old_ac)
+        exogenous_accrual += old_share * (float(paper.accrual_rate) - old_accrual)
+    return delta_ac - exogenous_ac, delta_accrual - exogenous_accrual
+
+
 def ac_percentile_rank(agent_ac: float, capitals: list[float]) -> float:
     """Tie-aware percentile rank in [0, 1] among ``capitals``.
 
@@ -137,6 +190,15 @@ class TabularQ:
     def update(self, features: np.ndarray, action: int, target: float) -> None:
         q = self.table[self._key(features)]
         q[action] += self.alpha * (target - q[action])
+
+    def trace_token(self, features: np.ndarray) -> tuple[int, ...]:
+        return self._key(features)
+
+    def add_error(
+        self, token: tuple[int, ...], action: int, td_error: float, eligibility: float
+    ) -> None:
+        q = self.table[token]
+        q[action] += self.alpha * td_error * eligibility
 
     def save(self, path: str) -> None:
         with open(path, "wb") as fh:
@@ -180,12 +242,83 @@ class LinearQ:
         self.W = np.load(path if path.endswith(".npy") else path + ".npy")
 
 
+def average_backends(primary, secondary):
+    """Mean of two Q tables. Greedy actions match the sum used while learning."""
+    if isinstance(primary, TabularQ):
+        averaged = TabularQ(alpha=primary.alpha, buckets=primary.buckets)
+        zeros = np.zeros(NUM_ACTIONS, dtype=np.float64)
+        for key in set(primary.table) | set(secondary.table):
+            averaged.table[key] = 0.5 * (
+                np.asarray(primary.table.get(key, zeros), dtype=np.float64)
+                + np.asarray(secondary.table.get(key, zeros), dtype=np.float64)
+            )
+        return averaged
+    if isinstance(primary, LinearQ):
+        averaged = LinearQ(alpha=primary.alpha)
+        averaged.W = 0.5 * (primary.W + secondary.W)
+        return averaged
+    raise TypeError(f"cannot average {type(primary).__name__}")
+
+
 def make_backend(kind: str = "tabular", **kwargs):
     if kind == "tabular":
         return TabularQ(**kwargs)
     if kind == "linear":
         return LinearQ(**kwargs)
     raise ValueError(f"unknown Q backend: {kind!r}")
+
+
+_TRACE_FLOOR = 1e-4
+
+# Actions that advance the agent's own manuscript. A publication payment is
+# carried back to these steps only.
+WRITING_TRACE_ACTIONS = frozenset({
+    int(QAction.WRITE),
+    int(QAction.FINISH_WRITE),
+    int(QAction.RESEARCH_FINISH),
+})
+
+
+class WritingTrace:
+    """Replacing eligibility trace over writing actions."""
+
+    def __init__(self) -> None:
+        self.weights: dict[tuple, float] = {}
+
+    def visit(self, token, action: int) -> None:
+        self.weights = {
+            key: value
+            for key, value in self.weights.items()
+            if key[0] != token
+        }
+        self.weights[(token, int(action))] = 1.0
+
+    def apply(self, backend, td_error: float) -> None:
+        stale = []
+        for (token, action), eligibility in self.weights.items():
+            if eligibility < _TRACE_FLOOR:
+                stale.append((token, action))
+                continue
+            backend.add_error(token, action, td_error, eligibility)
+        for key in stale:
+            del self.weights[key]
+
+    def decay(self, factor: float) -> None:
+        if factor <= 0.0:
+            self.weights.clear()
+            return
+        stale = []
+        for key, eligibility in self.weights.items():
+            updated = eligibility * factor
+            if updated < _TRACE_FLOOR:
+                stale.append(key)
+            else:
+                self.weights[key] = updated
+        for key in stale:
+            del self.weights[key]
+
+    def clear(self) -> None:
+        self.weights.clear()
 
 
 # --------------------------------------------------------------------------- #
@@ -205,7 +338,8 @@ class QLearningAgent(HeuristicAgent):
         name: str | None = None,
         *,
         backend=None,
-        gamma: float = 0.95,
+        backend_b=None,
+        gamma: float = SIM.rl_gamma,
         epsilon: float = 0.1,
         learning: bool = True,
     ):
@@ -219,9 +353,13 @@ class QLearningAgent(HeuristicAgent):
         )
         # Share one backend across agents for self-play; default to a private one.
         self.backend = backend if backend is not None else make_backend("tabular")
+        self.backend_b = backend_b
         self.gamma = gamma
         self.epsilon = epsilon
         self.learning = learning
+        self.trace_lambda = float(SIM.rl_trace_lambda)
+        self._writing_trace = WritingTrace()
+        self._writing_trace_b = WritingTrace()
 
         # Online-TD bookkeeping for the previous transition.
         self._last_features: np.ndarray | None = None
@@ -229,6 +367,8 @@ class QLearningAgent(HeuristicAgent):
         self._last_capital: float = academic_capital
         self._last_rank: float = self._current_ac_rank()
         self._last_accrual_rate: float = self._portfolio_accrual_rate()
+        self._last_holdings: dict[int, tuple[float, float, float]] = snapshot_holdings(self)
+        self._last_progress_potential: float = progress_potential(self)
 
         # Decision cached in the marketplace phase, replayed in the work phase.
         self._pending_action: int = int(QAction.WRITE)
@@ -308,21 +448,59 @@ class QLearningAgent(HeuristicAgent):
         return actions
 
     def _learn_transition(self, features: np.ndarray, legal: list[int]) -> None:
-        """Apply one TD update for the transition ending in ``features``."""
+        """Credit the action that just finished, and earlier writing steps."""
         if not self.learning or self._last_features is None:
             return
+        self._spread_return(features, legal)
+
+    def _online_pair(self):
+        """Table to update, table that scores the next action, and its trace.
+
+        With two tables, one chooses the greedy next action and the other
+        supplies its value, so a noisy high cell is not used as its own target.
+        """
+        if self.backend_b is None or random.random() < 0.5:
+            return self.backend, self.backend_b, self._writing_trace
+        return self.backend_b, self.backend, self._writing_trace_b
+
+    def _spread_return(
+        self, features: np.ndarray | None, legal: list[int] | None
+    ) -> None:
         reward = self._compute_reward()
-        q_next = self.backend.q_values(features)
-        max_next = max((q_next[a] for a in legal), default=0.0)
-        target = reward + self.gamma * max_next
-        self.backend.update(self._last_features, self._last_action, target)
+        online, offline, trace = self._online_pair()
+        if features is None or legal is None:
+            evaluated_next = 0.0
+        else:
+            q_online = online.q_values(features)
+            greedy = max(legal, key=lambda action: q_online[action])
+            if offline is None:
+                evaluated_next = float(q_online[greedy])
+            else:
+                evaluated_next = float(offline.q_values(features)[greedy])
+        current_q = float(online.q_values(self._last_features)[self._last_action])
+        delta = reward + self.gamma * evaluated_next - current_q
+        target = reward + self.gamma * evaluated_next
+        writing = int(self._last_action) in WRITING_TRACE_ACTIONS
+        if self.trace_lambda > 0.0 and hasattr(online, "add_error"):
+            if writing:
+                trace.visit(
+                    online.trace_token(self._last_features),
+                    int(self._last_action),
+                )
+                trace.apply(online, delta)
+            else:
+                online.update(self._last_features, self._last_action, target)
+                trace.apply(online, delta)
+            trace.decay(self.gamma * self.trace_lambda)
+            return
+        online.update(self._last_features, self._last_action, target)
 
     def end_episode(self) -> None:
-        """Terminal flush: bootstrap-free update for the final transition."""
+        """Terminal flush: no future value, then drop the writing traces."""
         if self.learning and self._last_features is not None:
-            self.backend.update(
-                self._last_features, self._last_action, self._compute_reward()
-            )
+            self._spread_return(None, None)
+        self._writing_trace.clear()
+        self._writing_trace_b.clear()
         self._last_features = None
         self._last_action = None
 
@@ -343,19 +521,22 @@ class QLearningAgent(HeuristicAgent):
         return total
 
     def _compute_reward(self) -> float:
-        delta_ac = self.academic_capital - self._last_capital
+        delta_ac, delta_accrual = action_caused_deltas(self)
         delta_rank = self._current_ac_rank() - self._last_rank
-        delta_accrual = self._portfolio_accrual_rate() - self._last_accrual_rate
         return (
             SIM.rl_reward_ac_weight * delta_ac
             + SIM.rl_reward_rank_weight * delta_rank
             + SIM.rl_reward_accrual_weight * delta_accrual
+            + self.gamma * progress_potential(self)
+            - self._last_progress_potential
         )
 
     def _remember_reward_baseline(self) -> None:
         self._last_capital = self.academic_capital
         self._last_rank = self._current_ac_rank()
         self._last_accrual_rate = self._portfolio_accrual_rate()
+        self._last_holdings = snapshot_holdings(self)
+        self._last_progress_potential = progress_potential(self)
 
     # ---- action helpers --------------------------------------------------- #
     def _legal_actions(self, in_review: bool, has_reviewable: bool) -> list[int]:
@@ -373,6 +554,8 @@ class QLearningAgent(HeuristicAgent):
         if self.learning and random.random() < self.epsilon:
             return random.choice(legal)
         q = self.backend.q_values(features)
+        if self.backend_b is not None:
+            q = q + self.backend_b.q_values(features)
         return max(legal, key=lambda a: q[a])
 
     # ---- state ------------------------------------------------------------ #
@@ -386,7 +569,6 @@ class QLearningAgent(HeuristicAgent):
             for p in Agent.all_papers
             if p is not exclude
             and self._can_review(p)
-            and p.offered_share(self) > 0.0
         ]
         if not reviewable:
             return None, 0.0, 0.0
@@ -398,7 +580,7 @@ class QLearningAgent(HeuristicAgent):
         num_reviewable = sum(
             1
             for p in Agent.all_papers
-            if self._can_review(p) and p.offered_share(self) > 0.0
+            if self._can_review(p)
         )
         in_review = self.active_review_paper is not None
         features = np.array(
