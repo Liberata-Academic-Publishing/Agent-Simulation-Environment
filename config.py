@@ -223,10 +223,18 @@ class SimConfig:
     # that drop, so a nearly finished manuscript makes continuing a review
     # score better than writing. 0 leaves manuscript progress out of the reward.
     rl_progress_potential: float = 0.0
-    # Range of the RL price feature. Offered review shares are log10-scaled
-    # from ``rl_share_feature_min`` (-> 0) to ``rl_share_feature_max`` (-> 1)
-    # and clipped outside it. The min matches the 0.01% offer floor; observed
-    # accepted offers run ~0.4%--50% (median ~3%).
+    # Continuous Q-learning state. The tabular key is only
+    # (manuscript progress bucket, active review-effort bucket). Offers,
+    # capital, and reputation are hidden so each bucket is visited often
+    # enough to correct a bad update. Review bucket 0 is exactly zero effort
+    # (not reviewing at decision time). Positive effort is spread across the
+    # remaining review buckets up to ``rl_review_progress_cap``.
+    rl_manuscript_buckets: int = 5
+    rl_review_buckets: int = 5
+    rl_review_progress_cap: float = 25.0
+    # Discrete Q-learning still log-scales the offered share into
+    # [``rl_share_feature_min``, ``rl_share_feature_max``]. Continuous
+    # Q-learning does not read it.
     rl_share_feature_min: float = 1e-4
     rl_share_feature_max: float = 0.5
     rl_autoload_policy: bool = True  # auto-load the saved baseline for RL agents
@@ -277,6 +285,13 @@ class SimConfig:
             raise ValueError("experience_alpha must be finite and nonnegative")
         if not math.isfinite(self.experience_h) or self.experience_h <= 0:
             raise ValueError("experience_h must be finite and positive")
+        if self.rl_manuscript_buckets < 2 or self.rl_review_buckets < 2:
+            raise ValueError("RL progress buckets must be at least 2")
+        if (
+            not math.isfinite(self.rl_review_progress_cap)
+            or self.rl_review_progress_cap <= 0.0
+        ):
+            raise ValueError("rl_review_progress_cap must be finite and positive")
 
 
 @dataclass(frozen=True)

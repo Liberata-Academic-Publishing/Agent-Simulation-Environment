@@ -1362,6 +1362,59 @@ class QLearningRewardTest(unittest.TestCase):
         self.assertLess(bucket(0.002), bucket(0.02))
         self.assertLess(bucket(0.02), bucket(0.2))
 
+    def test_continuous_state_is_only_progress_buckets(self):
+        from config import SIM
+        from QLearningAgent import (
+            NUM_FEATURES,
+            QLearningAgent,
+            manuscript_progress_bucket,
+            progress_features,
+            review_progress_bucket,
+        )
+
+        agent = QLearningAgent(intrinsic_talent=1.0, learning=False)
+        threshold = agent.paper_completion_threshold()
+        agent.paper_progress = 0.0
+        agent.active_review_effort = 0.0
+        agent.academic_capital = 500.0
+        agent.peer_review_history = 9.0
+        idle = agent._features(0.4, 80.0)
+        self.assertEqual(len(idle), NUM_FEATURES)
+        self.assertEqual(NUM_FEATURES, 2)
+        self.assertEqual(agent.backend._key(idle), (0, 0))
+
+        agent.academic_capital = 0.0
+        agent.peer_review_history = 0.0
+        self.assertEqual(agent.backend._key(agent._features(0.0, 0.0)), (0, 0))
+
+        agent.paper_progress = 0.5 * threshold
+        agent.active_review_effort = 1.0
+        reviewing = agent._features(0.0, 0.0)
+        self.assertEqual(
+            agent.backend._key(reviewing),
+            (
+                manuscript_progress_bucket(agent.paper_progress, threshold),
+                review_progress_bucket(1.0),
+            ),
+        )
+        self.assertGreater(agent.backend._key(reviewing)[1], 0)
+
+        manuscript_buckets = int(SIM.rl_manuscript_buckets)
+        review_buckets = int(SIM.rl_review_buckets)
+        keys = {
+            agent.backend._key(progress_features(manuscript, review))
+            for manuscript in range(manuscript_buckets)
+            for review in range(review_buckets)
+        }
+        self.assertEqual(
+            keys,
+            {
+                (manuscript, review)
+                for manuscript in range(manuscript_buckets)
+                for review in range(review_buckets)
+            },
+        )
+
     def test_ac_percentile_rank_handles_ties(self):
         from QLearningAgent import ac_percentile_rank
 

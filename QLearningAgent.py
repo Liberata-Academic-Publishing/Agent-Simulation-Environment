@@ -3,9 +3,11 @@
 Reward = weighted change in academic capital and portfolio accrual caused by
 ownership this action gained or lost, plus weighted Δ AC percentile rank.
 Citations on shares the agent already held are not part of the reward.
-The agent learns *which action type* to take each timestep; the target
-paper for a claim is chosen by the inherited heuristic forecast, so the action
-space stays tiny and fixed.
+The agent learns *which action type* to take each timestep. Its observation
+is only two buckets: how far the current manuscript has progressed, and how
+much effort the active review has accumulated. The target paper for a claim
+is still chosen by the inherited heuristic forecast, so the action space stays
+tiny and the offer, capital, and reputation never enter the Q table.
 
 The agent makes one decision per timestep, and the wiring depends on the active
 review paradigm:
@@ -27,10 +29,10 @@ Action space
                               (finalize the current review by claiming another
                               paper)
 
-NOTE: the action semantics and feature vector changed with the single-review
-marketplace overhaul, and the continuous merged-phase overhaul added the
-``RESEARCH_FINISH`` action (so ``NUM_ACTIONS`` grew). Policies saved before
-either change are incompatible and must be retrained.
+NOTE: the observation is the two progress buckets above, and the continuous
+merged-phase overhaul added ``RESEARCH_FINISH`` (so ``NUM_ACTIONS`` grew).
+Policies trained on the old 9-feature vector are incompatible and must be
+retrained.
 
 Library: numpy only. Two interchangeable Q backends (tabular + linear).
 """
@@ -54,10 +56,7 @@ from Agent import (
 )
 from config import SIM
 from HeuristicAgent import HeuristicAgent
-from Paper import (
-    MIN_REVIEW_EFFORT_THRESHOLD,
-    Paper,
-)
+from Paper import Paper
 
 
 class QAction(IntEnum):
@@ -69,15 +68,16 @@ class QAction(IntEnum):
     RESEARCH_FINISH = 5  # free (continuous): research, then finish/list the paper
 
 
-# Fixed-length observation. Index order is part of the contract between the
-# featurizer and the Q backends, so keep it stable.
-NUM_FEATURES = 9
+# Observation is (manuscript bucket, review-effort bucket), encoded in [0, 1]
+# so tabular quantization and the linear/DQN backends share one vector.
+# Index 0 is manuscript progress. Index 1 is active review effort.
+NUM_FEATURES = 2
+MANUSCRIPT_FEATURE = 0
+REVIEW_FEATURE = 1
 NUM_ACTIONS = len(QAction)
 
-# Scale used to squash invested review effort into ~[0, 1) for the feature.
-EFFORT_FEATURE_SCALE = 5.0
-
 # Range of the log-scaled review-share feature (see ``share_feature``).
+# Discrete Q-learning still uses it. Continuous Q-learning does not.
 SHARE_FEATURE_MIN = SIM.rl_share_feature_min
 SHARE_FEATURE_MAX = SIM.rl_share_feature_max
 
@@ -96,6 +96,112 @@ def share_feature(share: float) -> float:
     high = math.log10(SHARE_FEATURE_MAX)
     scaled = (math.log10(share) - low) / (high - low)
     return min(max(scaled, 0.0), 1.0)
+
+
+def manuscript_bucket_count() -> int:
+    return int(SIM.rl_manuscript_buckets)
+
+
+def review_bucket_count() -> int:
+    return int(SIM.rl_review_buckets)
+
+
+def manuscript_progress_bucket(progress: float, threshold: float) -> int:
+    """Bucket manuscript progress in ``[0, threshold]`` into ``0 .. n-1``."""
+    buckets = manuscript_bucket_count()
+    if threshold <= 0.0:
+        return 0
+    fraction = min(max(float(progress) / float(threshold), 0.0), 1.0)
+    if fraction >= 1.0:
+        return buckets - 1
+    return min(int(fraction * buckets), buckets - 1)
+
+
+def review_progress_bucket(effort: float) -> int:
+    """Bucket active review effort. Zero effort is always bucket 0.
+
+    At decision time a continuous review already includes the effort from the
+    turn that started it, so bucket 0 means the agent is not reviewing.
+    Positive effort is spread over buckets ``1 .. n-1`` up to
+    ``rl_review_progress_cap``.
+    """
+    buckets = review_bucket_count()
+    if float(effort) <= 0.0 or buckets <= 1:
+        return 0
+    cap = max(float(SIM.rl_review_progress_cap), 1e-9)
+    fraction = min(max(float(effort) / cap, 0.0), 1.0)
+    upper = buckets - 1
+    return 1 + min(int(fraction * upper), upper - 1)
+
+
+def bucket_feature(bucket: int, count: int) -> float:
+    """Encode bucket ``b`` as ``(b + 0.5) / count`` so ``int(value * count)`` is ``b``."""
+    count = max(int(count), 1)
+    bounded = min(max(int(bucket), 0), count - 1)
+    return (bounded + 0.5) / count
+
+
+def progress_features(manuscript_bucket: int, review_bucket: int) -> np.ndarray:
+    """Two-dimensional observation for one pair of progress buckets."""
+    return np.array(
+        [
+            bucket_feature(manuscript_bucket, manuscript_bucket_count()),
+            bucket_feature(review_bucket, review_bucket_count()),
+        ],
+        dtype=np.float64,
+    )
+
+
+def _combined_q(backend, backend_b, manuscript_bucket: int, review_bucket: int) -> np.ndarray:
+    features = progress_features(manuscript_bucket, review_bucket)
+    values = np.asarray(backend.q_values(features), dtype=np.float64)
+    if backend_b is not None:
+        values = values + np.asarray(backend_b.q_values(features), dtype=np.float64)
+    return values
+
+
+def write_claim_gaps(backend, backend_b=None) -> list[float]:
+    """``Q(write) - Q(claim)`` in every manuscript bucket while not reviewing.
+
+    Greedy selection adds the two tables when both are present. A positive gap
+    means writing beats claiming. A zero gap is a tie, and the free-action
+    order then keeps writing.
+    """
+    gaps = []
+    for manuscript_bucket in range(manuscript_bucket_count()):
+        values = _combined_q(backend, backend_b, manuscript_bucket, 0)
+        gaps.append(float(values[QAction.WRITE] - values[QAction.CLAIM]))
+    return gaps
+
+
+def describe_progress_policy(backend, backend_b=None) -> str:
+    """Q values the greedy policy sees on the progress grid."""
+    lines = [
+        "Progress-state Q (greedy sums the two tables when both exist).",
+        "Free states, review bucket 0. Gap is Q(write) - Q(claim).",
+    ]
+    for manuscript_bucket, gap in enumerate(write_claim_gaps(backend, backend_b)):
+        values = _combined_q(backend, backend_b, manuscript_bucket, 0)
+        lines.append(
+            f"  manuscript {manuscript_bucket}: "
+            f"write={values[QAction.WRITE]:+.4f} "
+            f"claim={values[QAction.CLAIM]:+.4f} "
+            f"gap={gap:+.4f}"
+        )
+    lines.append("Review states. Gap is Q(finish) - Q(continue).")
+    for review_bucket in range(1, review_bucket_count()):
+        for manuscript_bucket in range(manuscript_bucket_count()):
+            values = _combined_q(
+                backend, backend_b, manuscript_bucket, review_bucket
+            )
+            gap = float(values[QAction.FINISH_WRITE] - values[QAction.CONTINUE])
+            lines.append(
+                f"  manuscript {manuscript_bucket} review {review_bucket}: "
+                f"finish={values[QAction.FINISH_WRITE]:+.4f} "
+                f"continue={values[QAction.CONTINUE]:+.4f} "
+                f"gap={gap:+.4f}"
+            )
+    return "\n".join(lines)
 
 
 def progress_potential(agent) -> float:
@@ -170,19 +276,50 @@ def ac_percentile_rank(agent_ac: float, capitals: list[float]) -> float:
 # Q backends: q_values(features) -> np.ndarray[NUM_ACTIONS]; update(f, a, target)
 # --------------------------------------------------------------------------- #
 class TabularQ:
-    """Bucketized tabular Q-table. Simple, interpretable warm-up baseline."""
+    """Bucketized tabular Q-table. Simple, interpretable warm-up baseline.
 
-    def __init__(self, alpha: float = 0.1, buckets: int = 5):
+    ``feature_buckets`` is one count per observation coordinate. Continuous
+    Q-learning sets it to ``(manuscript buckets, review buckets)`` and encodes
+    each coordinate as ``(bucket + 0.5) / count``, which this key recovers.
+    Without it, every coordinate uses the single ``buckets`` count. That is
+    the path the discrete share-feature test still uses.
+    """
+
+    def __init__(
+        self,
+        alpha: float = 0.1,
+        buckets: int = 5,
+        feature_buckets: tuple[int, ...] | None = None,
+    ):
         self.alpha = alpha
-        self.buckets = buckets
+        self.buckets = int(buckets)
+        if feature_buckets is None:
+            self.feature_buckets = None
+        else:
+            self.feature_buckets = tuple(int(count) for count in feature_buckets)
         self.table: dict[tuple[int, ...], np.ndarray] = defaultdict(
             lambda: np.zeros(NUM_ACTIONS, dtype=np.float64)
         )
 
     def _key(self, features: np.ndarray) -> tuple[int, ...]:
-        clipped = np.clip(features, 0.0, 1.0)
-        idx = np.minimum((clipped * self.buckets).astype(int), self.buckets - 1)
-        return tuple(int(i) for i in idx)
+        clipped = np.clip(np.asarray(features, dtype=np.float64), 0.0, 1.0)
+        if not self.feature_buckets:
+            idx = np.minimum((clipped * self.buckets).astype(int), self.buckets - 1)
+            return tuple(int(i) for i in idx)
+        indices = []
+        paired = min(len(clipped), len(self.feature_buckets))
+        for value, count in zip(clipped[:paired], self.feature_buckets[:paired]):
+            bucket = int(float(value) * int(count))
+            if bucket >= count:
+                bucket = count - 1
+            if bucket < 0:
+                bucket = 0
+            indices.append(bucket)
+        if len(clipped) > paired:
+            extra = clipped[paired:]
+            more = np.minimum((extra * self.buckets).astype(int), self.buckets - 1)
+            indices.extend(int(i) for i in more)
+        return tuple(indices)
 
     def q_values(self, features: np.ndarray) -> np.ndarray:
         return self.table[self._key(features)]
@@ -202,14 +339,25 @@ class TabularQ:
 
     def save(self, path: str) -> None:
         with open(path, "wb") as fh:
-            pickle.dump({"alpha": self.alpha, "buckets": self.buckets,
-                         "table": dict(self.table)}, fh)
+            pickle.dump(
+                {
+                    "alpha": self.alpha,
+                    "buckets": self.buckets,
+                    "feature_buckets": self.feature_buckets,
+                    "table": dict(self.table),
+                },
+                fh,
+            )
 
     def load(self, path: str) -> None:
         with open(path, "rb") as fh:
             data = pickle.load(fh)
         self.alpha = data["alpha"]
         self.buckets = data["buckets"]
+        feature_buckets = data.get("feature_buckets")
+        self.feature_buckets = (
+            None if feature_buckets is None else tuple(int(count) for count in feature_buckets)
+        )
         self.table = defaultdict(
             lambda: np.zeros(NUM_ACTIONS, dtype=np.float64), data["table"]
         )
@@ -245,7 +393,11 @@ class LinearQ:
 def average_backends(primary, secondary):
     """Mean of two Q tables. Greedy actions match the sum used while learning."""
     if isinstance(primary, TabularQ):
-        averaged = TabularQ(alpha=primary.alpha, buckets=primary.buckets)
+        averaged = TabularQ(
+            alpha=primary.alpha,
+            buckets=primary.buckets,
+            feature_buckets=getattr(primary, "feature_buckets", None),
+        )
         zeros = np.zeros(NUM_ACTIONS, dtype=np.float64)
         for key in set(primary.table) | set(secondary.table):
             averaged.table[key] = 0.5 * (
@@ -262,6 +414,10 @@ def average_backends(primary, secondary):
 
 def make_backend(kind: str = "tabular", **kwargs):
     if kind == "tabular":
+        kwargs.setdefault(
+            "feature_buckets",
+            (manuscript_bucket_count(), review_bucket_count()),
+        )
         return TabularQ(**kwargs)
     if kind == "linear":
         return LinearQ(**kwargs)
@@ -577,30 +733,18 @@ class QLearningAgent(HeuristicAgent):
         return best, share, best.current_ac
 
     def _features(self, best_share: float, best_ac: float) -> np.ndarray:
-        num_reviewable = sum(
-            1
-            for p in Agent.all_papers
-            if self._can_review(p)
+        """Manuscript and review progress only.
+
+        ``best_share`` and ``best_ac`` stay in the signature because callers
+        still pick a claim target. They are not part of the observation.
+        """
+        del best_share, best_ac
+        return progress_features(
+            manuscript_progress_bucket(
+                self.paper_progress, self.paper_completion_threshold()
+            ),
+            review_progress_bucket(self.active_review_effort),
         )
-        in_review = self.active_review_paper is not None
-        features = np.array(
-            [
-                min(self.paper_progress / self.paper_completion_threshold(), 1.0),
-                np.tanh(self.active_review_effort / EFFORT_FEATURE_SCALE),
-                np.tanh(self.academic_capital / 100.0),
-                np.tanh(self.peer_review_history / 10.0),
-                np.tanh(num_reviewable / 10.0),
-                share_feature(best_share),
-                np.tanh(best_ac / 100.0),
-                1.0 if in_review else 0.0,
-                min(
-                    self.active_review_effort / max(MIN_REVIEW_EFFORT_THRESHOLD, 1.0),
-                    1.0,
-                ),
-            ],
-            dtype=np.float64,
-        )
-        return features
 
 
 class LowTalentQLearningAgent(QLearningAgent):

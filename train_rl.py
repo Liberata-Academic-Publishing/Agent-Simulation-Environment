@@ -52,7 +52,13 @@ from Environment import Environment
 from HeuristicAgent import HeuristicAgent
 from History import History
 from Paper import Paper
-from QLearningAgent import QLearningAgent, average_backends, make_backend
+from QLearningAgent import (
+    QLearningAgent,
+    average_backends,
+    describe_progress_policy,
+    make_backend,
+    write_claim_gaps,
+)
 
 OUTPUT_DIR = SIM.output_dir
 
@@ -193,6 +199,17 @@ def mean_capital(agents) -> float:
     return sum(a.academic_capital for a in agents) / len(agents)
 
 
+def mean_write_claim_gap(backends, twins) -> tuple[float, float]:
+    """Mean and minimum ``Q(write) - Q(claim)`` across agents and manuscript buckets."""
+    gaps: list[float] = []
+    for index, backend in enumerate(backends):
+        twin = None if twins is None else twins[index]
+        gaps.extend(write_claim_gaps(backend, twin))
+    if not gaps:
+        return 0.0, 0.0
+    return sum(gaps) / len(gaps), min(gaps)
+
+
 def rl_review_starts(history: History, agents) -> tuple[int, int]:
     """Review claims and total decisions for the named RL agents only."""
     names = {agent.name for agent in agents}
@@ -225,6 +242,14 @@ def build_train_config(args) -> dict[str, Any]:
         "low_talent": args.low_talent,
         "low_talent_value": args.low_talent_value,
         "shared_talents": args.shared_talents,
+        "reviewer_surplus_share": SIM.reviewer_surplus_share,
+        "rl_manuscript_buckets": SIM.rl_manuscript_buckets,
+        "rl_review_buckets": SIM.rl_review_buckets,
+        "rl_review_progress_cap": SIM.rl_review_progress_cap,
+        "rl_reward_ac_weight": SIM.rl_reward_ac_weight,
+        "rl_reward_rank_weight": SIM.rl_reward_rank_weight,
+        "rl_reward_accrual_weight": SIM.rl_reward_accrual_weight,
+        "rl_gamma": SIM.rl_gamma,
     }
 
 
@@ -390,18 +415,23 @@ def train(args) -> None:
 
     if args.episodes:
         talent_note = f" low_talent={args.low_talent_value}" if args.low_talent else ""
+        state_note = (
+            f"state={SIM.rl_manuscript_buckets}x{SIM.rl_review_buckets} "
+            f"reviewer_surplus_share={SIM.reviewer_surplus_share}"
+        )
         if args.train_one:
             print(f"Training one agent: paradigm={args.review_paradigm} "
                   f"backend={args.backend} episodes={args.episodes} "
                   f"timesteps={args.timesteps} "
                   f"frozen={args.frozen_agents} policy={args.frozen_policy}"
-                  f"{talent_note}")
+                  f"{talent_note} {state_note}")
         else:
             policy_note = "shared" if args.shared_policy else "independent"
             print(f"Training: paradigm={args.review_paradigm} backend={args.backend} "
                   f"policies={policy_note} episodes={args.episodes} "
                   f"timesteps={args.timesteps} "
-                  f"rl={args.num_rl} heuristic={args.num_heuristic}{talent_note}")
+                  f"rl={args.num_rl} heuristic={args.num_heuristic}"
+                  f"{talent_note} {state_note}")
     rl_talent = args.low_talent_value if args.low_talent else 1.0
     for episode in range(args.episodes):
         # Linear ε decay from eps_start to eps_end.
@@ -424,6 +454,9 @@ def train(args) -> None:
 
         mean_return = mean_capital(rl_agents)
         starts, decisions = rl_review_starts(history, rl_agents)
+        gap_backends = backends[:1] if args.shared_policy else backends
+        gap_twins = twins[:1] if args.shared_policy else twins
+        mean_gap, min_gap = mean_write_claim_gap(gap_backends, gap_twins)
         training_log.append({
             "episode": episode,
             "mean_return": mean_return,
@@ -431,17 +464,20 @@ def train(args) -> None:
             "epsilon": epsilon,
             "review_starts": starts,
             "decisions": decisions,
+            "mean_write_minus_claim": mean_gap,
+            "min_write_minus_claim": min_gap,
         })
 
         last = episode == args.episodes - 1
         if episode % max(1, args.episodes // 10) == 0 or last:
             review_note = ""
-            if args.train_one and decisions:
+            if decisions:
                 review_note = (
                     f"  reviews={starts}/{decisions} ({starts / decisions:6.2%})"
                 )
             print(f"  ep {episode:4d}  eps={epsilon:.3f}  "
-                  f"RL mean AC={mean_return:8.2f}{review_note}")
+                  f"RL mean AC={mean_return:8.2f}{review_note}  "
+                  f"write-claim gap mean={mean_gap:+.4f} min={min_gap:+.4f}")
 
     if training_log:
         save_training_outputs(training_log, open_chart_flag=args.open)
@@ -510,6 +546,18 @@ def evaluate(backends, twins, args, frozen_backends=None) -> int:
     )
     best = rl_agents[best_index]
     print(f"  Best policy       = {best.name}  AC={best.academic_capital:8.2f}")
+    print(describe_progress_policy(backends[best_index], twins[best_index]))
+    gaps = write_claim_gaps(backends[best_index], twins[best_index])
+    learned_refusal = all(gap > 1e-6 for gap in gaps)
+    tied = all(abs(gap) <= 1e-6 for gap in gaps)
+    if learned_refusal:
+        print("  Learned refusal: Q(write) > Q(claim) in every manuscript bucket.")
+    elif tied:
+        print("  Q(write) and Q(claim) are tied. Greedy tie-break keeps writing.")
+    elif min(gaps) > 0.0:
+        print("  Q(write) >= Q(claim) in every manuscript bucket.")
+    else:
+        print("  Some manuscript buckets still score claiming above writing.")
     return best_index
 
 

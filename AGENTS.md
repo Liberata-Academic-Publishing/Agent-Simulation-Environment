@@ -51,10 +51,13 @@ CLI flags for one-off overrides.
   both `run_simulation.py` and the static `docs/` gallery compare heuristic,
   random, probabilistic, RL, and low-talent RL agent outcomes.
 - **RL settings** live in `SimConfig` too (`rl_backend`, `rl_epsilon`,
-  `rl_gamma`, reward weights). The RL price feature is log10-scaled over
-  `rl_share_feature_min`..`rl_share_feature_max` (`share_feature` in `QLearningAgent.py`) so
-  offers of different magnitudes land in different tabular buckets; retrain
-  policies after changing it or the pricing economics. Continuous tabular/linear RL uses `train_rl.py`.
+  `rl_gamma`, reward weights). Continuous Q-learning observes only two
+  buckets: manuscript progress (`rl_manuscript_buckets`) and active review
+  effort (`rl_review_buckets`; bucket 0 is zero effort). Offers, capital, and
+  reputation are hidden so the table stays small enough to revisit. Retrain
+  after changing those buckets. Discrete Q-learning still log-scales the
+  offered share over `rl_share_feature_min`..`rl_share_feature_max`
+  (`share_feature` in `QLearningAgent.py`). Continuous tabular/linear RL uses `train_rl.py`.
   Each training agent has its own Q table, so one agent's update does not change
   the others; pass `--shared-policy` for the old single table. The greedy
   evaluation keeps the table with the highest academic capital and saves it to

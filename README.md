@@ -379,7 +379,7 @@ part of the nine accepted legacy failures.
 
 ### RL Training
 
-Reinforcement-learning (RL) agents learn a policy that maps the simulation state, such as writing progress, active review effort, available offers, and capital, to the most rewarding action. They train against heuristic opponents and then use the
+Reinforcement-learning (RL) agents learn a policy that maps bucketed manuscript progress and bucketed peer-review progress to the most rewarding action. Offers, capital, and reputation are not part of that observation. They train against heuristic opponents and then use the
 saved policy while competing with other agent groups in a simulation.
 
 
