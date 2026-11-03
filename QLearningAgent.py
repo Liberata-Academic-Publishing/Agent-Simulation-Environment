@@ -27,9 +27,10 @@ Action space
                               paper)
 
 NOTE: the action semantics and feature vector changed with the single-review
-marketplace overhaul, and the continuous merged-phase overhaul added the
-``RESEARCH_FINISH`` action (so ``NUM_ACTIONS`` grew). Policies saved before
-either change are incompatible and must be retrained.
+marketplace overhaul, the continuous merged-phase overhaul added the
+``RESEARCH_FINISH`` action (so ``NUM_ACTIONS`` grew), and the reputation feature
+grew ``NUM_FEATURES``. Policies saved before any of these changes are
+incompatible and must be retrained.
 
 Library: numpy only. Two interchangeable Q backends (tabular + linear).
 """
@@ -70,7 +71,7 @@ class QAction(IntEnum):
 
 # Fixed-length observation. Index order is part of the contract between the
 # featurizer and the Q backends, so keep it stable.
-NUM_FEATURES = 9
+NUM_FEATURES = 10
 NUM_ACTIONS = len(QAction)
 
 # Scale used to squash invested review effort into ~[0, 1) for the feature.
@@ -79,6 +80,20 @@ EFFORT_FEATURE_SCALE = 5.0
 # Range of the log-scaled review-share feature (see ``share_feature``).
 SHARE_FEATURE_MIN = SIM.rl_share_feature_min
 SHARE_FEATURE_MAX = SIM.rl_share_feature_max
+
+# Range of the log-scaled reputation feature (see ``reputation_feature``).
+REPUTATION_FEATURE_MIN = SIM.rl_reputation_feature_min
+REPUTATION_FEATURE_MAX = SIM.rl_reputation_feature_max
+
+
+def _log_scaled(value: float, minimum: float, maximum: float) -> float:
+    """Map ``minimum`` -> 0 and ``maximum`` -> 1 on a log10 scale, clipping."""
+    if value <= 0.0:
+        return 0.0
+    low = math.log10(minimum)
+    high = math.log10(maximum)
+    scaled = (math.log10(value) - low) / (high - low)
+    return min(max(scaled, 0.0), 1.0)
 
 
 def share_feature(share: float) -> float:
@@ -89,12 +104,18 @@ def share_feature(share: float) -> float:
     maps ``SHARE_FEATURE_MIN`` -> 0 and ``SHARE_FEATURE_MAX`` -> 1 on a log10
     scale, clipping outside that range. No offer (share <= 0) maps to 0.
     """
-    if share <= 0.0:
-        return 0.0
-    low = math.log10(SHARE_FEATURE_MIN)
-    high = math.log10(SHARE_FEATURE_MAX)
-    scaled = (math.log10(share) - low) / (high - low)
-    return min(max(scaled, 0.0), 1.0)
+    return _log_scaled(share, SHARE_FEATURE_MIN, SHARE_FEATURE_MAX)
+
+
+def reputation_feature(epsilon_history: float) -> float:
+    """Log-scale ``peer_review_epsilon_history`` into [0, 1].
+
+    This is the reviewer score that sets offers, so the agent can condition on
+    its standing. Scaling matches ``share_feature``: ``REPUTATION_FEATURE_MIN``
+    -> 0, ``REPUTATION_FEATURE_MAX`` -> 1, clipped outside, and no effect
+    (epsilon <= 0) maps to 0.
+    """
+    return _log_scaled(epsilon_history, REPUTATION_FEATURE_MIN, REPUTATION_FEATURE_MAX)
 
 
 def ac_percentile_rank(agent_ac: float, capitals: list[float]) -> float:
@@ -146,6 +167,11 @@ class TabularQ:
     def load(self, path: str) -> None:
         with open(path, "rb") as fh:
             data = pickle.load(fh)
+        for key in data["table"]:
+            if len(key) != NUM_FEATURES:
+                raise ValueError(
+                    f"policy has {len(key)} features, expected {NUM_FEATURES}"
+                )
         self.alpha = data["alpha"]
         self.buckets = data["buckets"]
         self.table = defaultdict(
@@ -177,7 +203,12 @@ class LinearQ:
         np.save(path, self.W)
 
     def load(self, path: str) -> None:
-        self.W = np.load(path if path.endswith(".npy") else path + ".npy")
+        weights = np.load(path if path.endswith(".npy") else path + ".npy")
+        if weights.shape != self.W.shape:
+            raise ValueError(
+                f"policy weights have shape {weights.shape}, expected {self.W.shape}"
+            )
+        self.W = weights
 
 
 def make_backend(kind: str = "tabular", **kwargs):
@@ -415,6 +446,7 @@ class QLearningAgent(HeuristicAgent):
                     self.active_review_effort / max(MIN_REVIEW_EFFORT_THRESHOLD, 1.0),
                     1.0,
                 ),
+                reputation_feature(self.peer_review_epsilon_history),
             ],
             dtype=np.float64,
         )

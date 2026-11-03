@@ -202,7 +202,7 @@ class SimConfig:
     # --- RL agents (part of the simulation) ------------------------------
     rl_backend: str = "tabular"     # "tabular" | "linear"
     rl_epsilon: float = 0.1         # exploration when learning online
-    rl_gamma: float = 0.95          # TD discount
+    rl_gamma: float = 0.99          # TD discount
     # Reward = Δ citation AC (AC only comes from citations) plus a shaping
     # term on Δ expected citation AC per timestep. Citations arrive long after
     # a paper is written or reviewed, so the shaping term (weighted by
@@ -210,13 +210,19 @@ class SimConfig:
     # are expected to bring. Set it to 0 for a pure realized-AC reward.
     rl_reward_ac_weight: float = 1.0      # weight on Δ academic capital (citation AC)
     rl_reward_rank_weight: float = 0.0     # weight on Δ AC percentile rank (0..1)
-    rl_reward_accrual_weight: float = 20.0  # weight on Δ expected citation AC per timestep
+    rl_reward_accrual_weight: float = 100.0  # weight on Δ expected citation AC per timestep
     # Range of the RL price feature. Offered review shares are log10-scaled
     # from ``rl_share_feature_min`` (-> 0) to ``rl_share_feature_max`` (-> 1)
     # and clipped outside it. The min matches the 0.01% offer floor; observed
     # accepted offers run ~0.4%--50% (median ~3%).
     rl_share_feature_min: float = 1e-4
     rl_share_feature_max: float = 0.5
+    # Range of the RL reputation feature. ``peer_review_epsilon_history`` is
+    # log10-scaled over this range and clipped outside it. With 5 tabular
+    # buckets the edges fall at 0.04/0.08/0.16/0.32, close to
+    # ``reputation_bin_edges``; observed agent values run ~0.05--0.4.
+    rl_reputation_feature_min: float = 0.02
+    rl_reputation_feature_max: float = 0.64
     rl_autoload_policy: bool = True  # auto-load the saved baseline for RL agents
     rl_low_talent_autoload_policy: bool = True  # auto-load low-talent RL policy
     talent_min: float = 0.6         # default talent spread; CLI can widen/narrow it

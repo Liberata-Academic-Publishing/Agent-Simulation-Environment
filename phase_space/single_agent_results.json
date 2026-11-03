@@ -1,0 +1,3541 @@
+{
+  "settings": {
+    "alpha": 0.1,
+    "steps": 200000,
+    "seeds": 20,
+    "base_seed": 11,
+    "eps_start": 1.0,
+    "eps_end": 0.05,
+    "grid_size": 12,
+    "a_max": 4.0,
+    "p_max": 11.0,
+    "ex2_a": 1.0,
+    "ex2_max": 3.0
+  },
+  "ex1": [
+    {
+      "rates": {
+        "A": 0.3333333333333333,
+        "PR": 0.9166666666666666
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 0.3333333333333333,
+        "PR": 1.8333333333333335
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 0.3333333333333333,
+        "PR": 2.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 0.3333333333333333,
+        "PR": 3.6666666666666665
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 0.3333333333333333,
+        "PR": 4.583333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 0.3333333333333333,
+        "PR": 5.500000000000001
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 0.3333333333333333,
+        "PR": 6.416666666666667
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 0.3333333333333333,
+        "PR": 7.333333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 0.3333333333333333,
+        "PR": 8.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 0.3333333333333333,
+        "PR": 9.166666666666666
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 0.3333333333333333,
+        "PR": 10.083333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 0.3333333333333333,
+        "PR": 11.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 0.6666666666666666,
+        "PR": 0.9166666666666666
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 0.6666666666666666,
+        "PR": 1.8333333333333335
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 0.6666666666666666,
+        "PR": 2.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 0.6666666666666666,
+        "PR": 3.6666666666666665
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 0.6666666666666666,
+        "PR": 4.583333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 0.6666666666666666,
+        "PR": 5.500000000000001
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 0.6666666666666666,
+        "PR": 6.416666666666667
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 0.6666666666666666,
+        "PR": 7.333333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 0.6666666666666666,
+        "PR": 8.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 0.6666666666666666,
+        "PR": 9.166666666666666
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 0.6666666666666666,
+        "PR": 10.083333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 0.6666666666666666,
+        "PR": 11.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "PR": 0.9166666666666666
+      },
+      "fractions": {
+        "A": 1.0,
+        "PR": 0.0
+      },
+      "predicted": "A",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "PR": 1.8333333333333335
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "PR": 2.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "PR": 3.6666666666666665
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "PR": 4.583333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "PR": 5.500000000000001
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "PR": 6.416666666666667
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "PR": 7.333333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "PR": 8.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "PR": 9.166666666666666
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "PR": 10.083333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "PR": 11.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.3333333333333333,
+        "PR": 0.9166666666666666
+      },
+      "fractions": {
+        "A": 1.0,
+        "PR": 0.0
+      },
+      "predicted": "A",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.3333333333333333,
+        "PR": 1.8333333333333335
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.3333333333333333,
+        "PR": 2.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.3333333333333333,
+        "PR": 3.6666666666666665
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.3333333333333333,
+        "PR": 4.583333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.3333333333333333,
+        "PR": 5.500000000000001
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.3333333333333333,
+        "PR": 6.416666666666667
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.3333333333333333,
+        "PR": 7.333333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.3333333333333333,
+        "PR": 8.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.3333333333333333,
+        "PR": 9.166666666666666
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.3333333333333333,
+        "PR": 10.083333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.3333333333333333,
+        "PR": 11.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.6666666666666665,
+        "PR": 0.9166666666666666
+      },
+      "fractions": {
+        "A": 1.0,
+        "PR": 0.0
+      },
+      "predicted": "A",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.6666666666666665,
+        "PR": 1.8333333333333335
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.6666666666666665,
+        "PR": 2.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.6666666666666665,
+        "PR": 3.6666666666666665
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.6666666666666665,
+        "PR": 4.583333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.6666666666666665,
+        "PR": 5.500000000000001
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.6666666666666665,
+        "PR": 6.416666666666667
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.6666666666666665,
+        "PR": 7.333333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.6666666666666665,
+        "PR": 8.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.6666666666666665,
+        "PR": 9.166666666666666
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.6666666666666665,
+        "PR": 10.083333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.6666666666666665,
+        "PR": 11.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.9999999999999998,
+        "PR": 0.9166666666666666
+      },
+      "fractions": {
+        "A": 1.0,
+        "PR": 0.0
+      },
+      "predicted": "A",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.9999999999999998,
+        "PR": 1.8333333333333335
+      },
+      "fractions": {
+        "A": 1.0,
+        "PR": 0.0
+      },
+      "predicted": "A",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.9999999999999998,
+        "PR": 2.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.9999999999999998,
+        "PR": 3.6666666666666665
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.9999999999999998,
+        "PR": 4.583333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.9999999999999998,
+        "PR": 5.500000000000001
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.9999999999999998,
+        "PR": 6.416666666666667
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.9999999999999998,
+        "PR": 7.333333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.9999999999999998,
+        "PR": 8.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.9999999999999998,
+        "PR": 9.166666666666666
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.9999999999999998,
+        "PR": 10.083333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.9999999999999998,
+        "PR": 11.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 2.3333333333333335,
+        "PR": 0.9166666666666666
+      },
+      "fractions": {
+        "A": 1.0,
+        "PR": 0.0
+      },
+      "predicted": "A",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 2.3333333333333335,
+        "PR": 1.8333333333333335
+      },
+      "fractions": {
+        "A": 1.0,
+        "PR": 0.0
+      },
+      "predicted": "A",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 2.3333333333333335,
+        "PR": 2.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 2.3333333333333335,
+        "PR": 3.6666666666666665
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 2.3333333333333335,
+        "PR": 4.583333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 2.3333333333333335,
+        "PR": 5.500000000000001
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 2.3333333333333335,
+        "PR": 6.416666666666667
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 2.3333333333333335,
+        "PR": 7.333333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 2.3333333333333335,
+        "PR": 8.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 2.3333333333333335,
+        "PR": 9.166666666666666
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 2.3333333333333335,
+        "PR": 10.083333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 2.3333333333333335,
+        "PR": 11.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 2.6666666666666665,
+        "PR": 0.9166666666666666
+      },
+      "fractions": {
+        "A": 1.0,
+        "PR": 0.0
+      },
+      "predicted": "A",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 2.6666666666666665,
+        "PR": 1.8333333333333335
+      },
+      "fractions": {
+        "A": 1.0,
+        "PR": 0.0
+      },
+      "predicted": "A",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 2.6666666666666665,
+        "PR": 2.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 2.6666666666666665,
+        "PR": 3.6666666666666665
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 2.6666666666666665,
+        "PR": 4.583333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 2.6666666666666665,
+        "PR": 5.500000000000001
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 2.6666666666666665,
+        "PR": 6.416666666666667
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 2.6666666666666665,
+        "PR": 7.333333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 2.6666666666666665,
+        "PR": 8.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 2.6666666666666665,
+        "PR": 9.166666666666666
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 2.6666666666666665,
+        "PR": 10.083333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 2.6666666666666665,
+        "PR": 11.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.0,
+        "PR": 0.9166666666666666
+      },
+      "fractions": {
+        "A": 1.0,
+        "PR": 0.0
+      },
+      "predicted": "A",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.0,
+        "PR": 1.8333333333333335
+      },
+      "fractions": {
+        "A": 1.0,
+        "PR": 0.0
+      },
+      "predicted": "A",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.0,
+        "PR": 2.75
+      },
+      "fractions": {
+        "A": 1.0,
+        "PR": 0.0
+      },
+      "predicted": "A",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.0,
+        "PR": 3.6666666666666665
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.0,
+        "PR": 4.583333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.0,
+        "PR": 5.500000000000001
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.0,
+        "PR": 6.416666666666667
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.0,
+        "PR": 7.333333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.0,
+        "PR": 8.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.0,
+        "PR": 9.166666666666666
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.0,
+        "PR": 10.083333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.0,
+        "PR": 11.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.3333333333333335,
+        "PR": 0.9166666666666666
+      },
+      "fractions": {
+        "A": 1.0,
+        "PR": 0.0
+      },
+      "predicted": "A",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.3333333333333335,
+        "PR": 1.8333333333333335
+      },
+      "fractions": {
+        "A": 1.0,
+        "PR": 0.0
+      },
+      "predicted": "A",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.3333333333333335,
+        "PR": 2.75
+      },
+      "fractions": {
+        "A": 1.0,
+        "PR": 0.0
+      },
+      "predicted": "A",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.3333333333333335,
+        "PR": 3.6666666666666665
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.3333333333333335,
+        "PR": 4.583333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.3333333333333335,
+        "PR": 5.500000000000001
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.3333333333333335,
+        "PR": 6.416666666666667
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.3333333333333335,
+        "PR": 7.333333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.3333333333333335,
+        "PR": 8.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.3333333333333335,
+        "PR": 9.166666666666666
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.3333333333333335,
+        "PR": 10.083333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.3333333333333335,
+        "PR": 11.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.6666666666666665,
+        "PR": 0.9166666666666666
+      },
+      "fractions": {
+        "A": 1.0,
+        "PR": 0.0
+      },
+      "predicted": "A",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.6666666666666665,
+        "PR": 1.8333333333333335
+      },
+      "fractions": {
+        "A": 1.0,
+        "PR": 0.0
+      },
+      "predicted": "A",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.6666666666666665,
+        "PR": 2.75
+      },
+      "fractions": {
+        "A": 1.0,
+        "PR": 0.0
+      },
+      "predicted": "A",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.6666666666666665,
+        "PR": 4.583333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.6666666666666665,
+        "PR": 5.500000000000001
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.6666666666666665,
+        "PR": 6.416666666666667
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.6666666666666665,
+        "PR": 7.333333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.6666666666666665,
+        "PR": 8.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.6666666666666665,
+        "PR": 9.166666666666666
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.6666666666666665,
+        "PR": 10.083333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 3.6666666666666665,
+        "PR": 11.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 4.0,
+        "PR": 0.9166666666666666
+      },
+      "fractions": {
+        "A": 1.0,
+        "PR": 0.0
+      },
+      "predicted": "A",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 4.0,
+        "PR": 1.8333333333333335
+      },
+      "fractions": {
+        "A": 1.0,
+        "PR": 0.0
+      },
+      "predicted": "A",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 4.0,
+        "PR": 2.75
+      },
+      "fractions": {
+        "A": 1.0,
+        "PR": 0.0
+      },
+      "predicted": "A",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 4.0,
+        "PR": 3.6666666666666665
+      },
+      "fractions": {
+        "A": 1.0,
+        "PR": 0.0
+      },
+      "predicted": "A",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 4.0,
+        "PR": 4.583333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 4.0,
+        "PR": 5.500000000000001
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 4.0,
+        "PR": 6.416666666666667
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 4.0,
+        "PR": 7.333333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 4.0,
+        "PR": 8.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 4.0,
+        "PR": 9.166666666666666
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 4.0,
+        "PR": 10.083333333333334
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 4.0,
+        "PR": 11.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "PR": 1.0
+      },
+      "predicted": "PR",
+      "on_predicted_side": true
+    }
+  ],
+  "ex2": [
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.25,
+        "BF": 0.25
+      },
+      "fractions": {
+        "A": 1.0,
+        "GF": 0.0,
+        "BF": 0.0
+      },
+      "predicted": "A",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.25,
+        "BF": 0.5
+      },
+      "fractions": {
+        "A": 1.0,
+        "GF": 0.0,
+        "BF": 0.0
+      },
+      "predicted": "A",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.25,
+        "BF": 0.75
+      },
+      "fractions": {
+        "A": 1.0,
+        "GF": 0.0,
+        "BF": 0.0
+      },
+      "predicted": "A",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.25,
+        "BF": 1.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.25,
+        "BF": 1.5
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.25,
+        "BF": 1.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.25,
+        "BF": 2.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.25,
+        "BF": 2.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.25,
+        "BF": 2.5
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.25,
+        "BF": 2.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.25,
+        "BF": 3.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.5,
+        "BF": 0.25
+      },
+      "fractions": {
+        "A": 1.0,
+        "GF": 0.0,
+        "BF": 0.0
+      },
+      "predicted": "A",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.5,
+        "BF": 0.5
+      },
+      "fractions": {
+        "A": 1.0,
+        "GF": 0.0,
+        "BF": 0.0
+      },
+      "predicted": "A",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.5,
+        "BF": 0.75
+      },
+      "fractions": {
+        "A": 1.0,
+        "GF": 0.0,
+        "BF": 0.0
+      },
+      "predicted": "A",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.5,
+        "BF": 1.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.5,
+        "BF": 1.5
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.5,
+        "BF": 1.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.5,
+        "BF": 2.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.5,
+        "BF": 2.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.5,
+        "BF": 2.5
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.5,
+        "BF": 2.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.5,
+        "BF": 3.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.75,
+        "BF": 0.25
+      },
+      "fractions": {
+        "A": 1.0,
+        "GF": 0.0,
+        "BF": 0.0
+      },
+      "predicted": "A",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.75,
+        "BF": 0.5
+      },
+      "fractions": {
+        "A": 1.0,
+        "GF": 0.0,
+        "BF": 0.0
+      },
+      "predicted": "A",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.75,
+        "BF": 0.75
+      },
+      "fractions": {
+        "A": 1.0,
+        "GF": 0.0,
+        "BF": 0.0
+      },
+      "predicted": "A",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.75,
+        "BF": 1.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.75,
+        "BF": 1.5
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.75,
+        "BF": 1.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.75,
+        "BF": 2.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.75,
+        "BF": 2.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.75,
+        "BF": 2.5
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.75,
+        "BF": 2.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 0.75,
+        "BF": 3.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.0,
+        "BF": 1.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.0,
+        "BF": 1.5
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.0,
+        "BF": 1.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.0,
+        "BF": 2.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.0,
+        "BF": 2.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.0,
+        "BF": 2.5
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.0,
+        "BF": 2.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.0,
+        "BF": 3.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.25,
+        "BF": 0.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.25,
+        "BF": 0.5
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.25,
+        "BF": 0.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.25,
+        "BF": 1.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.25,
+        "BF": 1.5
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.25,
+        "BF": 1.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.25,
+        "BF": 2.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.25,
+        "BF": 2.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.25,
+        "BF": 2.5
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.25,
+        "BF": 2.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.25,
+        "BF": 3.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.5,
+        "BF": 0.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.5,
+        "BF": 0.5
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.5,
+        "BF": 0.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.5,
+        "BF": 1.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.5,
+        "BF": 1.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.5,
+        "BF": 1.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.5,
+        "BF": 2.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.5,
+        "BF": 2.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.5,
+        "BF": 2.5
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.5,
+        "BF": 2.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.5,
+        "BF": 3.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.75,
+        "BF": 0.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.75,
+        "BF": 0.5
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.75,
+        "BF": 0.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.75,
+        "BF": 1.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.75,
+        "BF": 1.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.75,
+        "BF": 1.5
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.75,
+        "BF": 2.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.75,
+        "BF": 2.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.75,
+        "BF": 2.5
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.75,
+        "BF": 2.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 1.75,
+        "BF": 3.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.0,
+        "BF": 0.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.0,
+        "BF": 0.5
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.0,
+        "BF": 0.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.0,
+        "BF": 1.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.0,
+        "BF": 1.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.0,
+        "BF": 1.5
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.0,
+        "BF": 1.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.0,
+        "BF": 2.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.0,
+        "BF": 2.5
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.0,
+        "BF": 2.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.0,
+        "BF": 3.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.25,
+        "BF": 0.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.25,
+        "BF": 0.5
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.25,
+        "BF": 0.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.25,
+        "BF": 1.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.25,
+        "BF": 1.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.25,
+        "BF": 1.5
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.25,
+        "BF": 1.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.25,
+        "BF": 2.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.25,
+        "BF": 2.5
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.25,
+        "BF": 2.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.25,
+        "BF": 3.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.5,
+        "BF": 0.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.5,
+        "BF": 0.5
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.5,
+        "BF": 0.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.5,
+        "BF": 1.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.5,
+        "BF": 1.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.5,
+        "BF": 1.5
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.5,
+        "BF": 1.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.5,
+        "BF": 2.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.5,
+        "BF": 2.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.5,
+        "BF": 2.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.5,
+        "BF": 3.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.75,
+        "BF": 0.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.75,
+        "BF": 0.5
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.75,
+        "BF": 0.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.75,
+        "BF": 1.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.75,
+        "BF": 1.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.75,
+        "BF": 1.5
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.75,
+        "BF": 1.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.75,
+        "BF": 2.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.75,
+        "BF": 2.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.75,
+        "BF": 2.5
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 2.75,
+        "BF": 3.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 0.0,
+        "BF": 1.0
+      },
+      "predicted": "BF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 3.0,
+        "BF": 0.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 3.0,
+        "BF": 0.5
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 3.0,
+        "BF": 0.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 3.0,
+        "BF": 1.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 3.0,
+        "BF": 1.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 3.0,
+        "BF": 1.5
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 3.0,
+        "BF": 1.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 3.0,
+        "BF": 2.0
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 3.0,
+        "BF": 2.25
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 3.0,
+        "BF": 2.5
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    },
+    {
+      "rates": {
+        "A": 1.0,
+        "GF": 3.0,
+        "BF": 2.75
+      },
+      "fractions": {
+        "A": 0.0,
+        "GF": 1.0,
+        "BF": 0.0
+      },
+      "predicted": "GF",
+      "on_predicted_side": true
+    }
+  ]
+}

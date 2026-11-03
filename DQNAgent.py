@@ -193,6 +193,11 @@ class DQNBackend:
     def load(self, path: str) -> None:
         with open(path, "rb") as fh:
             data = pickle.load(fh)
+        num_features = data["params"][0][0].shape[0]
+        if num_features != NUM_FEATURES:
+            raise ValueError(
+                f"policy has {num_features} features, expected {NUM_FEATURES}"
+            )
         self.hidden_size = int(data["hidden_size"])
         self.hidden_layers = int(data["hidden_layers"])
         self.lr = float(data["lr"])

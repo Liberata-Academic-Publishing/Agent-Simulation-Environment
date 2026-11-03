@@ -498,6 +498,7 @@ def build_discrete_rl_agents(
                 forecast_horizon_timesteps=SIM.forecast_horizon_timesteps,
                 name=f"RL Agent {i + 1}",
                 backend=backend,
+                gamma=SIM.rl_gamma,
                 epsilon=0.0 if freeze else SIM.rl_epsilon,
                 learning=not freeze,
             )
@@ -559,6 +560,7 @@ def build_rl_agents(
                 forecast_horizon_timesteps=SIM.forecast_horizon_timesteps,
                 name=f"RL Agent {i + 1}",
                 backend=backend,
+                gamma=SIM.rl_gamma,
                 epsilon=0.0 if freeze else SIM.rl_epsilon,
                 learning=not freeze,
             )
@@ -608,6 +610,7 @@ def build_low_talent_rl_agents(
                 forecast_horizon_timesteps=SIM.forecast_horizon_timesteps,
                 name=f"Low-talent RL Agent {i + 1}",
                 backend=backend,
+                gamma=SIM.rl_gamma,
                 epsilon=0.0 if freeze else SIM.rl_epsilon,
                 learning=not freeze,
             )
@@ -660,6 +663,7 @@ def build_low_talent_discrete_rl_agents(
                 forecast_horizon_timesteps=SIM.forecast_horizon_timesteps,
                 name=f"Low-talent RL Agent {i + 1}",
                 backend=backend,
+                gamma=SIM.rl_gamma,
                 epsilon=0.0 if freeze else SIM.rl_epsilon,
                 learning=not freeze,
             )

@@ -33,7 +33,7 @@ from Paper import (
     REVIEW_PARADIGM_DISCRETE,
     Paper,
 )
-from QLearningAgent import share_feature
+from QLearningAgent import reputation_feature, share_feature
 
 DISCRETE_REVIEW_PARADIGM = REVIEW_PARADIGM_DISCRETE
 
@@ -44,7 +44,7 @@ class DiscreteQAction(IntEnum):
     GOOD_FAITH_CLAIM = 2
 
 
-NUM_DISCRETE_FEATURES = 9
+NUM_DISCRETE_FEATURES = 10
 NUM_DISCRETE_ACTIONS = len(DiscreteQAction)
 EFFORT_FEATURE_SCALE = 5.0
 
@@ -156,12 +156,22 @@ def _validate_discrete_policy_payload(data: dict) -> None:
         )
     table = data.get("table")
     if table is not None:
-        for values in table.values():
+        for key, values in table.items():
             if len(values) != NUM_DISCRETE_ACTIONS:
                 raise ValueError("policy Q-table action dimension is not discrete")
+            if len(key) != NUM_DISCRETE_FEATURES:
+                raise ValueError(
+                    f"policy has {len(key)} features, expected {NUM_DISCRETE_FEATURES}"
+                )
     weights = data.get("W")
-    if weights is not None and np.array(weights).shape[0] != NUM_DISCRETE_ACTIONS:
-        raise ValueError("policy weight matrix action dimension is not discrete")
+    if weights is not None:
+        shape = np.array(weights).shape
+        if shape[0] != NUM_DISCRETE_ACTIONS:
+            raise ValueError("policy weight matrix action dimension is not discrete")
+        if shape[1] != NUM_DISCRETE_FEATURES + 1:
+            raise ValueError(
+                f"policy has {shape[1] - 1} features, expected {NUM_DISCRETE_FEATURES}"
+            )
 
 
 def make_discrete_backend(kind: str = "tabular", **kwargs):
@@ -354,6 +364,7 @@ class DiscreteQLearningAgent(HeuristicAgent):
                     self.active_review_effort / max(MIN_REVIEW_EFFORT_THRESHOLD, 1.0),
                     1.0,
                 ),
+                reputation_feature(self.peer_review_epsilon_history),
             ],
             dtype=np.float64,
         )

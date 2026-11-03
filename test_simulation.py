@@ -1348,12 +1348,12 @@ class QLearningRewardTest(unittest.TestCase):
     def test_share_feature_separates_offer_sizes_in_tabular_key(self):
         import numpy as np
 
-        from QLearningAgent import TabularQ, share_feature
+        from QLearningAgent import NUM_FEATURES, TabularQ, share_feature
 
         backend = TabularQ()
 
         def bucket(share):
-            features = np.zeros(9)
+            features = np.zeros(NUM_FEATURES)
             features[5] = share_feature(share)
             return backend._key(features)[5]
 
