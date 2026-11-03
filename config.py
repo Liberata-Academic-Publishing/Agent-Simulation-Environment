@@ -176,8 +176,8 @@ class SimConfig:
     # sampled paper quality to a larger target inside that band. With
     # threshold publishing, a non-fixed mode replaces continuous_paper_timesteps.
     paper_effort_mode: str = "uniform"             # "fixed" | "uniform" | "quality_scaled"
-    paper_effort_min: float = 50.0
-    paper_effort_max: float = 150.0
+    paper_effort_min: float = 20.0
+    paper_effort_max: float = 20.0
     # Start each agent partway through its first paper (uniform in
     # [0, completion threshold)) so first publications, and the citation AC
     # they pay out, are staggered instead of arriving in synchronized waves.
@@ -200,12 +200,12 @@ class SimConfig:
     preferred_extra_review_timesteps: float = 4.0
 
     # --- RL agents (part of the simulation) ------------------------------
-    rl_backend: str = "tabular"     # "tabular" | "linear"
+    rl_backend: str = "tabular"     # stateless table: one Q-value per action
     rl_epsilon: float = 0.1         # exploration when learning online
-    rl_gamma: float = 0.5           # one wasted step keeps half the return
-    # How far a publication payment reaches back along writing steps.
-    # Each earlier write receives the payment discounted by ``rl_gamma``.
-    # Review actions are not eligible. 0 keeps the one-step update only.
+    rl_gamma: float = 0.99          # discount; a reward 100 steps away keeps about 37%
+    # Publication payment for a finished manuscript. Each writing step since
+    # the previous publication is updated toward ``reward / n``. Review
+    # actions are left out. 0 keeps the one-step update only.
     rl_trace_lambda: float = 1.0
     # Reward uses the capital and forecast change caused by ownership the
     # action gained or lost. Citations on shares the agent already held are
@@ -284,7 +284,7 @@ class TrainConfig:
     """Defaults for the training harness (train_rl.py) — kept separate from the
     simulation parameters above."""
 
-    episodes: int = 1000
+    episodes: int = 200
     timesteps: int = 1000
     num_rl: int = 10
     num_heuristic: int = 0
@@ -292,6 +292,11 @@ class TrainConfig:
     eps_end: float = 0.05
     low_talent: bool = False
     low_talent_value: float = 0.3
+    # Training-only review supply. When true, each training episode keeps one
+    # unowned paper listed per agent so a claim is always possible. Those papers
+    # are not authored by anyone in the roster, and the merit-market scan is
+    # skipped. Turn this off to train against the ordinary seeded marketplace.
+    unlimited_review_supply: bool = False
 
 
 @dataclass(frozen=True)
@@ -304,6 +309,7 @@ class TrainDQNConfig:
     num_heuristic: int = 0
     eps_start: float = 1.0
     eps_end: float = 0.05
+    unlimited_review_supply: bool = True
 
 
 @dataclass(frozen=True)
@@ -318,6 +324,7 @@ class TrainDiscreteConfig:
     eps_end: float = 0.05
     low_talent: bool = False
     low_talent_value: float = 0.3
+    unlimited_review_supply: bool = True
 
 
 SIM = SimConfig()

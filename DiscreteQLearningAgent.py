@@ -16,6 +16,7 @@ Policies save to ``policies/policy_<backend>_discrete.pkl``.
 
 from __future__ import annotations
 
+import math
 import pickle
 import random
 from collections import defaultdict
@@ -23,7 +24,7 @@ from enum import IntEnum
 
 import numpy as np
 
-from Agent import Agent
+from Agent import Agent, ownership_papers
 from config import SIM
 from HeuristicAgent import HeuristicAgent
 from Paper import (
@@ -33,15 +34,92 @@ from Paper import (
     REVIEW_PARADIGM_DISCRETE,
     Paper,
 )
-from QLearningAgent import (
-    WritingTrace,
-    action_caused_deltas,
-    progress_potential,
-    share_feature,
-    snapshot_holdings,
-)
 
 DISCRETE_REVIEW_PARADIGM = REVIEW_PARADIGM_DISCRETE
+
+SHARE_FEATURE_MIN = SIM.rl_share_feature_min
+SHARE_FEATURE_MAX = SIM.rl_share_feature_max
+
+
+def share_feature(share: float) -> float:
+    """Log-scale a review share into [0, 1]. No offer maps to 0."""
+    if share <= 0.0:
+        return 0.0
+    low = math.log10(SHARE_FEATURE_MIN)
+    high = math.log10(SHARE_FEATURE_MAX)
+    scaled = (math.log10(share) - low) / (high - low)
+    return min(max(scaled, 0.0), 1.0)
+
+
+def progress_potential(agent) -> float:
+    """Weight times how far the current manuscript has progressed."""
+    weight = float(SIM.rl_progress_potential)
+    if weight == 0.0:
+        return 0.0
+    threshold = float(agent.paper_completion_threshold())
+    if threshold <= 0.0:
+        return 0.0
+    fraction = min(max(float(agent.paper_progress) / threshold, 0.0), 1.0)
+    return weight * fraction
+
+
+def snapshot_holdings(agent) -> dict[int, tuple[float, float, float]]:
+    """Share, academic capital, and accrual rate of each paper ``agent`` owns."""
+    holdings: dict[int, tuple[float, float, float]] = {}
+    for paper in ownership_papers():
+        share = float(paper.share_distribution.get(agent, 0.0))
+        if share:
+            holdings[id(paper)] = (
+                share,
+                float(paper.current_ac),
+                float(paper.accrual_rate),
+            )
+    return holdings
+
+
+def action_caused_deltas(agent) -> tuple[float, float]:
+    """Capital and accrual changes caused by ownership the action changed."""
+    delta_ac = agent.academic_capital - agent._last_capital
+    delta_accrual = agent._portfolio_accrual_rate() - agent._last_accrual_rate
+    holdings = getattr(agent, "_last_holdings", None) or {}
+    if not holdings:
+        return delta_ac, delta_accrual
+    exogenous_ac = 0.0
+    exogenous_accrual = 0.0
+    for paper in ownership_papers():
+        previous = holdings.get(id(paper))
+        if previous is None:
+            continue
+        old_share, old_ac, old_accrual = previous
+        exogenous_ac += old_share * (float(paper.current_ac) - old_ac)
+        exogenous_accrual += old_share * (float(paper.accrual_rate) - old_accrual)
+    return delta_ac - exogenous_ac, delta_accrual - exogenous_accrual
+
+
+class WritingTrace:
+    """Writing steps of the current manuscript.
+
+    When the manuscript publishes, its reward is divided by the number of
+    steps and each step is updated toward that share.
+    """
+
+    def __init__(self) -> None:
+        self.steps: list[tuple] = []
+
+    def visit(self, token, action: int) -> None:
+        self.steps.append((token, int(action)))
+
+    def apply_split(self, backend, reward: float) -> None:
+        n = len(self.steps)
+        if n == 0:
+            return
+        share = float(reward) / n
+        for token, action in self.steps:
+            backend.update_token(token, action, share)
+        self.clear()
+
+    def clear(self) -> None:
+        self.steps.clear()
 
 
 class DiscreteQAction(IntEnum):
@@ -94,6 +172,10 @@ class DiscreteTabularQ:
     ) -> None:
         q = self.table[token]
         q[action] += self.alpha * td_error * eligibility
+
+    def update_token(self, token: tuple[int, ...], action: int, target: float) -> None:
+        q = self.table[token]
+        q[action] += self.alpha * (target - q[action])
 
     def save(self, path: str) -> None:
         with open(path, "wb") as fh:
@@ -223,6 +305,7 @@ class DiscreteQLearningAgent(HeuristicAgent):
         self.learning = learning
         self.trace_lambda = float(SIM.rl_trace_lambda)
         self._writing_trace = WritingTrace()
+        self._manuscript_published = False
 
         self._last_features: np.ndarray | None = None
         self._last_action: int | None = None
@@ -277,6 +360,7 @@ class DiscreteQLearningAgent(HeuristicAgent):
         if self.learning and self._last_features is not None:
             self._spread_return(None, None)
         self._writing_trace.clear()
+        self._manuscript_published = False
         self._last_features = None
         self._last_action = None
         self._pending_review_kind = None
@@ -303,39 +387,46 @@ class DiscreteQLearningAgent(HeuristicAgent):
             return
         self._spread_return(features, legal)
 
+    def publish_paper(self) -> Paper:
+        paper = super().publish_paper()
+        self._manuscript_published = True
+        return paper
+
+    def finish_research_paper(self) -> Paper:
+        paper = super().finish_research_paper()
+        self._manuscript_published = True
+        return paper
+
     def _spread_return(
         self, features: np.ndarray | None, legal: list[int] | None
     ) -> None:
         reward = self._compute_reward()
+        published = self._manuscript_published
+        writing = int(self._last_action) == int(DiscreteQAction.WRITE)
+        if (
+            writing
+            and self.trace_lambda > 0.0
+            and hasattr(self.backend, "update_token")
+            and self._last_features is not None
+        ):
+            self._writing_trace.visit(
+                self.backend.trace_token(self._last_features),
+                int(self._last_action),
+            )
+            if published:
+                self._writing_trace.apply_split(self.backend, reward)
+                self._manuscript_published = False
+            return
         if features is None or legal is None:
             max_next = 0.0
         else:
             q_next = self.backend.q_values(features)
             max_next = max((q_next[action] for action in legal), default=0.0)
-        current_q = float(
-            self.backend.q_values(self._last_features)[self._last_action]
-        )
-        delta = reward + self.gamma * max_next - current_q
-        writing = int(self._last_action) == int(DiscreteQAction.WRITE)
-        if self.trace_lambda > 0.0 and hasattr(self.backend, "add_error"):
-            if writing:
-                self._writing_trace.visit(
-                    self.backend.trace_token(self._last_features),
-                    int(self._last_action),
-                )
-                self._writing_trace.apply(self.backend, delta)
-            else:
-                self.backend.update(
-                    self._last_features,
-                    self._last_action,
-                    reward + self.gamma * max_next,
-                )
-                self._writing_trace.apply(self.backend, delta)
-            self._writing_trace.decay(self.gamma * self.trace_lambda)
-            return
         self.backend.update(
             self._last_features, self._last_action, reward + self.gamma * max_next
         )
+        if published:
+            self._manuscript_published = False
 
     def _peer_capitals(self) -> list[float]:
         return [agent.academic_capital for agent in Agent.all_agents]
@@ -345,7 +436,7 @@ class DiscreteQLearningAgent(HeuristicAgent):
 
     def _portfolio_accrual_rate(self) -> float:
         total = 0.0
-        for paper in Agent.all_papers:
+        for paper in ownership_papers():
             share = paper.share_distribution.get(self, 0.0)
             if share:
                 total += share * paper.accrual_rate

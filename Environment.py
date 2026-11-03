@@ -7,14 +7,22 @@ from collections.abc import Callable, Sequence
 from statistics import median
 from typing import TYPE_CHECKING
 
-from Agent import Agent, validate_continuous_publishing
+from Agent import (
+    PAPER_EFFORT_MODE_FIXED,
+    PAPER_EFFORT_MODE_UNIFORM,
+    PAPER_THRESHOLD,
+    Agent,
+    validate_continuous_publishing,
+)
 from config import SIM
 from Paper import (
     REVIEW_PARADIGM_DISCRETE,
     PRICING_POLICY_ADAPTIVE,
     Paper,
+    accrual_rate_from_effort,
     fair_market_price_from_epsilons,
     generate_citations,
+    quality_multiplier,
     validate_citation_reference_count_distribution,
     validate_pricing_policy,
     validate_review_paradigm,
@@ -24,6 +32,17 @@ if TYPE_CHECKING:
     from History import History
 
 AgentFactory = Callable[..., Agent]
+
+
+class _TrainingSupplyAuthor:
+    """Author of record for papers that exist only so trainees can review them.
+
+    This object is not on the environment roster, so the author share never
+    pays a simulated agent.
+    """
+
+    def __init__(self) -> None:
+        self.name = "Training supply"
 
 
 class Environment:
@@ -76,6 +95,7 @@ class Environment:
         citation_ac_per_new_paper: float = SIM.citation_ac_per_new_paper,
         citation_income_smoothing: float = SIM.citation_income_smoothing,
         history: "History | None" = None,
+        unlimited_review_supply: bool = False,
     ):
         if agents is not None and num_agents is not None:
             raise ValueError("Pass either agents or num_agents, not both.")
@@ -121,6 +141,7 @@ class Environment:
         self.citation_ac_per_new_paper = float(citation_ac_per_new_paper)
         self.citation_income_smoothing = float(citation_income_smoothing)
         self.history = history
+        self.unlimited_review_supply = bool(unlimited_review_supply)
         self.timestep = 0
         self.fair_market_price = fair_market_price_from_epsilons(
             [SIM.prior_review_epsilon]
@@ -141,6 +162,14 @@ class Environment:
         self.papers = list(Agent.all_papers if papers is None else papers)
         Agent.all_papers = self.papers
         Agent.all_agents = self.agents
+        self._supply_author: _TrainingSupplyAuthor | None = None
+        self._supply_listed: list[Paper] = []
+        self._supply_held: list[Paper] = []
+        if self.unlimited_review_supply:
+            self._supply_author = _TrainingSupplyAuthor()
+            Agent.training_supply_holdings = self._supply_held
+        else:
+            Agent.training_supply_holdings = []
         self._configure_agents()
         # Smoothed citation AC handed out per timestep. Prior: every agent
         # publishes one paper per expected paper-effort target.
@@ -156,7 +185,9 @@ class Environment:
         """Advance the simulation by one full timestep."""
         self.timestep += 1
         self._sync_papers()
+        self._attach_review_supply()
         self._update_citation_forecasts()
+        self._refresh_supply_rates()
         self._list_scheduled_papers()
         self._update_market_prices()
         self._clear_review_market()
@@ -169,6 +200,7 @@ class Environment:
         else:
             self._continuous_phase(order)
 
+        self._detach_review_supply()
         self._sync_papers()
         distributed = self._process_citations()
         self.citation_income_per_timestep += self.citation_income_smoothing * (
@@ -176,7 +208,10 @@ class Environment:
         )
         self._schedule_new_papers()
 
-        # AC comes only from citations (credited in ``_process_citations``).
+        # Real papers earn AC only from citations. Training-supply papers are
+        # outside that graph; a finished review accrues from the paper's own
+        # quality, writing effort, and review bump instead.
+        self._accrue_supply_holdings()
         self.update_agent_capital()
 
         if self.history is not None:
@@ -215,7 +250,7 @@ class Environment:
         of review effort instead of re-deciding.
         """
         claimers: set[Agent] = set()
-        if self.use_merit_market_clearing:
+        if self.use_merit_market_clearing and not self.unlimited_review_supply:
             for agent in self.agents:
                 agent.current_timestep = self.timestep
                 if agent.active_review_paper is not None:
@@ -274,7 +309,16 @@ class Environment:
         self._update_market_prices()
 
     def _update_market_prices(self) -> None:
-        listed = [p for p in self.papers if p.review_available]
+        listed = [
+            p
+            for p in self.papers
+            if p.review_available and not getattr(p, "training_supply", False)
+        ]
+        supply_listed = [
+            p
+            for p in self.papers
+            if p.review_available and getattr(p, "training_supply", False)
+        ]
         eligible = sum(
             1 for agent in self.agents if agent.active_review_paper is None
         )
@@ -282,17 +326,22 @@ class Environment:
         if not listed:
             self.reviewer_pressure = 0.0
             self.scarcity_multiplier = 1.0
+            median_quality = (
+                median(p.quality for p in supply_listed) if supply_listed else 1.0
+            )
+        else:
+            pressure = eligible / max(1, len(listed))
+            self.reviewer_pressure = pressure
+            if self.use_scarcity_pricing:
+                exponent = max(0.0, self.reviewer_pressure_exponent)
+                self.scarcity_multiplier = pressure ** (-exponent)
+            else:
+                self.scarcity_multiplier = 1.0
+            median_quality = median(p.quality for p in listed)
+
+        if not listed and not supply_listed:
             return
 
-        pressure = eligible / max(1, len(listed))
-        self.reviewer_pressure = pressure
-        if self.use_scarcity_pricing:
-            exponent = max(0.0, self.reviewer_pressure_exponent)
-            self.scarcity_multiplier = pressure ** (-exponent)
-        else:
-            self.scarcity_multiplier = 1.0
-
-        median_quality = median(p.quality for p in listed)
         epsilons = [
             getattr(a, "peer_review_epsilon_history", SIM.prior_review_epsilon)
             for a in self.agents
@@ -303,7 +352,7 @@ class Environment:
             else SIM.prior_review_epsilon
         )
         self.fair_market_price = fair_market_price_from_epsilons(epsilons)
-        for paper in listed:
+        for paper in (*listed, *supply_listed):
             paper.update_price_table(
                 self.agents,
                 median_quality,
@@ -318,7 +367,9 @@ class Environment:
         for agent in self.agents:
             agent.market_claim_assignment = None
 
-        if not self.use_merit_market_clearing:
+        # Training supply is claimed by the learner's own action. Scoring every
+        # listed paper here is the heuristic pass (would-claim, win probability).
+        if self.unlimited_review_supply or not self.use_merit_market_clearing:
             self.market_assignments = 0
             return
 
@@ -378,12 +429,13 @@ class Environment:
         if not self.citations_enabled:
             return 0.0
         distributed = 0.0
-        for paper in list(self.papers):
+        corpus = self._citation_papers()
+        for paper in corpus:
             if paper.citations_generated:
                 continue
             eligible = [
                 other
-                for other in self.papers
+                for other in corpus
                 if other.publish_timestep < paper.publish_timestep
             ]
             cited = generate_citations(
@@ -411,18 +463,25 @@ class Environment:
         log_decay = math.log(self.citation_age_decay_ratio)
         Paper.citation_quality_weight = self.citation_quality_weight
         Paper.citation_log_decay_ratio = log_decay
-        if not self.papers:
+        papers = self._citation_papers()
+        if not papers:
+            if self.unlimited_review_supply:
+                income = max(0.0, self.citation_income_per_timestep)
+                Paper.citation_income_per_weight = income * math.exp(
+                    -self.citation_quality_weight
+                )
+                Paper.mean_accrual_rate = income
             return
         log_weights = [
             paper.citation_log_weight(self.timestep, self.citation_quality_weight, log_decay)
-            for paper in self.papers
+            for paper in papers
         ]
         top = max(log_weights)
         log_total = top + math.log(sum(math.exp(value - top) for value in log_weights))
         income = max(0.0, self.citation_income_per_timestep)
         Paper.citation_income_per_weight = income * math.exp(-log_total)
-        Paper.mean_accrual_rate = income / len(self.papers)
-        for paper, value in zip(self.papers, log_weights):
+        Paper.mean_accrual_rate = income / len(papers)
+        for paper, value in zip(papers, log_weights):
             paper.accrual_rate = income * math.exp(value - log_total)
 
     def _expected_paper_effort(self) -> float:
@@ -449,10 +508,128 @@ class Environment:
         for agent in self.agents:
             agent.academic_capital = 0.0
 
-        for paper in self.papers:
-            for agent, share in paper.share_distribution.items():
-                if agent in agent_set:
-                    agent.academic_capital += share * paper.current_ac
+        groups = (self.papers, self._supply_held) if self._supply_held else (self.papers,)
+        for papers in groups:
+            for paper in papers:
+                for agent, share in paper.share_distribution.items():
+                    if agent in agent_set:
+                        agent.academic_capital += share * paper.current_ac
+
+    # ---- training review supply ------------------------------------------
+    def _citation_papers(self) -> list[Paper]:
+        """Corpus that participates in citations.
+
+        Training-supply papers are priced and reviewed, but they are not citation
+        targets. Keeping them out of this list stops the citation pass from
+        growing with every review.
+        """
+        if not self.unlimited_review_supply:
+            return self.papers
+        return [
+            paper
+            for paper in self.papers
+            if not getattr(paper, "training_supply", False)
+        ]
+
+    def _sample_supply_effort(self, quality: float) -> float:
+        """Finished-manuscript effort, using the same rules as a real paper."""
+        if self.paper_effort_mode == PAPER_EFFORT_MODE_FIXED:
+            if self.review_paradigm == REVIEW_PARADIGM_DISCRETE:
+                if self.continuous_publishing == "threshold":
+                    return self.continuous_paper_timesteps
+                return self.discrete_paper_timesteps
+            if self.continuous_publishing == "threshold":
+                return self.continuous_paper_timesteps
+            return PAPER_THRESHOLD
+        lo = min(self.paper_effort_min, self.paper_effort_max)
+        hi = max(self.paper_effort_min, self.paper_effort_max)
+        if hi <= lo:
+            return lo
+        if self.paper_effort_mode == PAPER_EFFORT_MODE_UNIFORM:
+            return random.uniform(lo, hi)
+        scaled = 1.0 / (1.0 + math.exp(-3.0 * (quality_multiplier(quality) - 1.0)))
+        return lo + (hi - lo) * scaled
+
+    def _make_supply_paper(self) -> Paper:
+        quality = quality_multiplier(random.gauss(1.0, SIM.quality_sigma))
+        effort = self._sample_supply_effort(quality)
+        paper = Paper(
+            author=self._supply_author,
+            quality=quality,
+            writing_effort=effort,
+            required_writing_effort=effort,
+            publish_timestep=self.timestep,
+            market_listed=True,
+        )
+        paper.training_supply = True
+        paper.citations_generated = True
+        paper.listed_timestep = self.timestep
+        paper.title = "Training supply"
+        return paper
+
+    def _refile_supply_papers(self) -> None:
+        still_listed: list[Paper] = []
+        for paper in self._supply_listed:
+            if paper.review_available:
+                still_listed.append(paper)
+            else:
+                self._supply_held.append(paper)
+        self._supply_listed = still_listed
+
+    def _refresh_supply_rates(self) -> None:
+        """Set listed supply papers' forecast from the live citation scale."""
+        if not self._supply_listed:
+            return
+        for paper in self._supply_listed:
+            effort = 0.0 if paper.writing_effort is None else paper.writing_effort
+            paper.accrual_rate = accrual_rate_from_effort(paper.quality, effort)
+
+    def _attach_review_supply(self) -> None:
+        """Keep one listed, unowned paper per agent for this timestep."""
+        if not self.unlimited_review_supply:
+            return
+        self._refile_supply_papers()
+        need = len(self.agents)
+        while len(self._supply_listed) < need:
+            self._supply_listed.append(self._make_supply_paper())
+        present = {id(paper) for paper in self.papers}
+        fresh = [paper for paper in self._supply_listed if id(paper) not in present]
+        if fresh:
+            self.papers[0:0] = fresh
+
+    def _detach_review_supply(self) -> None:
+        """Drop supply papers from the world list before citations and history."""
+        if not self.unlimited_review_supply:
+            return
+        if any(getattr(paper, "training_supply", False) for paper in self.papers):
+            self.papers = [
+                paper
+                for paper in self.papers
+                if not getattr(paper, "training_supply", False)
+            ]
+            Agent.all_papers = self.papers
+        self._refile_supply_papers()
+
+    def _accrue_supply_holdings(self) -> None:
+        """Pay a reviewed supply paper from its quality, effort, and review bump.
+
+        This is the config forecast for a paper of that shape, including the
+        citation-age decay, without walking the rest of the corpus.
+        """
+        if not self._supply_held:
+            return
+        decay = self.citation_age_decay_ratio
+        for paper in self._supply_held:
+            if not paper.reviewed:
+                continue
+            effort = 0.0 if paper.writing_effort is None else paper.writing_effort
+            rate = accrual_rate_from_effort(paper.quality, effort)
+            rate *= 1.0 + paper.review_bump_at(self.timestep)
+            age = max(0, self.timestep - int(paper.publish_timestep))
+            if 0.0 < decay < 1.0 and age:
+                rate *= decay ** age
+            paper.accrual_rate = rate
+            paper.current_ac += rate
 
     # ---- helpers ---------------------------------------------------------
     def _sync_papers(self):

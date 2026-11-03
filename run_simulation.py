@@ -399,6 +399,11 @@ CHART_DESCRIPTIONS = {
     "paper_ac": "Accrued capital per paper over time",
     "episode_return": "Episode return from RL training (if training_log.json exists)",
     "avg_peer_review_time": "Average peer review time per training episode",
+    "agent_policy": "Greedy RL policy and the action it picks at each share, effort, and progress",
+    "agent_policy_low_talent": "Low-talent RL policy and the action it picks at each share, effort, and progress",
+    "agent_policy_dqn": "DQN policy and the action it picks at each share, effort, and progress",
+    "agent_policy_discrete": "Discrete RL policy and the action it picks at each share and progress",
+    "agent_policy_discrete_low_talent": "Low-talent discrete RL policy and the action it picks at each share and progress",
 }
 
 
@@ -413,11 +418,17 @@ def open_chart(path: str) -> None:
 
 
 def save_outputs(history: History, *, show: bool = False, open_charts: bool = False,
-                 include_training: bool = True):
+                 include_training: bool = True, policy_views=None):
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     csv_path = history.to_csv(os.path.join(OUTPUT_DIR, "history.csv"))
     json_path = history.to_json(os.path.join(OUTPUT_DIR, "history.json"))
     print(f"\nWrote time-series to {csv_path} and {json_path}")
+
+    policy_paths: dict[str, str] = {}
+    if policy_views:
+        from policy_view import write_policy_views
+
+        policy_paths = write_policy_views(policy_views, OUTPUT_DIR, show=show)
 
     try:
         import visualize
@@ -443,6 +454,7 @@ def save_outputs(history: History, *, show: bool = False, open_charts: bool = Fa
     )
     if review_time_chart:
         paths["avg_peer_review_time"] = review_time_chart
+    paths.update(policy_paths)
 
     print("\nWrote charts to the runs/ folder:")
     for name, path in paths.items():
@@ -1594,7 +1606,16 @@ def _run_once(args, *, seed: int, title: str | None = None) -> dict:
     if not args.quiet:
         print_summary(env, history)
         print_choice_breakdown(history)
-    save_outputs(history, show=args.show, open_charts=args.open)
+    from policy_view import views_for_agents
+
+    save_outputs(
+        history,
+        show=args.show,
+        open_charts=args.open,
+        policy_views=views_for_agents(
+            env.agents, publishing=env.continuous_publishing
+        ),
+    )
 
     if args.no_archive:
         print("\nNot archived to the gallery (--no-archive).")

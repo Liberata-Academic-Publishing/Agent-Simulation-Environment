@@ -13,11 +13,9 @@ in the default *continuous* paradigm the RL agent makes one merged decision per
 timestep; in *discrete* it uses the two-phase flow. The action space differs
 between paradigms, so a policy trained in one is not meaningful in the other.
 
-Each agent keeps two tables. One picks the greedy next action and the other
-scores it, so a noisy high cell is not copied back into itself. After the
-greedy evaluation, the mean of the two tables belonging to the agent with the
-most academic capital is saved to ``policies/policy_<backend>``. The
-simulation loads that one policy.
+Each agent keeps one table with a single value per action. After the greedy
+evaluation, the table of the agent with the most academic capital is saved to
+``policies/policy_<backend>``. The simulation loads that policy.
 
 ``--train-one`` trains a single agent for longer. The other agents play the
 latest saved policy and do not learn. The saved file is that one agent's
@@ -27,7 +25,6 @@ Usage:
     python train_rl.py                       # one Q table per agent
     python train_rl.py --shared-policy       # one table shared by every agent
     python train_rl.py --train-one --no-archive
-    python train_rl.py --backend linear --episodes 300
     python train_rl.py --load policies/policy_tabular_independent --episodes 0
 """
 
@@ -52,7 +49,7 @@ from Environment import Environment
 from HeuristicAgent import HeuristicAgent
 from History import History
 from Paper import Paper
-from QLearningAgent import QLearningAgent, average_backends, make_backend
+from QLearningAgent import QLearningAgent, make_backend
 
 OUTPUT_DIR = SIM.output_dir
 
@@ -95,7 +92,6 @@ def build_env(
     *,
     backend=None,
     backends=None,
-    backends_b=None,
     epsilon: float,
     learning: bool,
     num_rl: int,
@@ -112,8 +108,7 @@ def build_env(
     """Fresh env: RL agents vs. heuristic opponents.
 
     ``backends`` assigns one Q table per agent, in order. Passing a single
-    ``backend`` shares that same table across the RL agents. ``backends_b`` is
-    the second table used to score the action the first table picks.
+    ``backend`` shares that same table across the RL agents.
     """
     if backends is None:
         if backend is None:
@@ -121,8 +116,6 @@ def build_env(
         backends = [backend] * num_rl
     if len(backends) != num_rl:
         raise ValueError(f"expected {num_rl} backends, got {len(backends)}")
-    if backends_b is not None and len(backends_b) != num_rl:
-        raise ValueError(f"expected {num_rl} second backends, got {len(backends_b)}")
     rng = random.Random(seed)
     Agent.all_papers = []
 
@@ -132,7 +125,6 @@ def build_env(
             forecast_horizon_timesteps=horizon,
             name=f"RL {i}",
             backend=backends[i],
-            backend_b=None if backends_b is None else backends_b[i],
             epsilon=epsilon,
             learning=learning,
             gamma=gamma,
@@ -175,7 +167,9 @@ def build_env(
     env = Environment(agents=agents, papers=Agent.all_papers,
                       forecast_horizon_timesteps=horizon,
                       review_paradigm=review_paradigm,
-                      history=history, **environment_options)
+                      history=history,
+                      unlimited_review_supply=TRAIN.unlimited_review_supply,
+                      **environment_options)
     return env, rl_agents, heuristics
 
 
@@ -343,44 +337,39 @@ def load_frozen_backends(path: str, count: int, kind: str) -> list:
     return backends
 
 
-def make_backends(args) -> tuple[list, list]:
-    """One pair of Q tables per agent, or one shared pair with ``--shared-policy``.
-
-    The second table scores the action the first one picks, so a noisy high
-    cell is not copied back into itself.
-    """
+def make_backends(args) -> list:
+    """One Q table per agent, or one shared table with ``--shared-policy``."""
     count = 1 if args.shared_policy else args.num_rl
     backends = [make_backend(args.backend, alpha=args.alpha) for _ in range(count)]
-    twins = [make_backend(args.backend, alpha=args.alpha) for _ in range(count)]
     if args.load:
         if os.path.isdir(args.load):
             files = list_independent_policy_files(args.load)
             if not files:
                 raise SystemExit(f"No agent policies in {args.load}")
-            for index, backend in enumerate(backends + twins):
+            for index, backend in enumerate(backends):
                 backend.load(files[index % len(files)])
             print(f"Loaded {len(files)} policies from {args.load}")
         else:
-            for backend in backends + twins:
+            for backend in backends:
                 backend.load(args.load)
             print(f"Loaded policy from {args.load}")
     elif args.episodes == 0:
         print("Warning: --episodes 0 with no --load evaluates an empty policy.")
     if args.shared_policy:
-        return backends * args.num_rl, twins * args.num_rl
-    return backends, twins
+        return backends * args.num_rl
+    return backends
 
 
-def save_best_policy(backends, twins, args, best_index: int) -> str:
-    """Write the mean of the selected agent's two tables. Returns the file path."""
+def save_best_policy(backends, args, best_index: int) -> str:
+    """Write the selected agent's table. Returns the file path."""
     path = args.save or _single_policy_path(args)
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    average_backends(backends[best_index], twins[best_index]).save(path)
+    backends[best_index].save(path)
     return path
 
 
 def train(args) -> None:
-    backends, twins = make_backends(args)
+    backends = make_backends(args)
     frozen_backends = (
         load_frozen_backends(args.frozen_policy, args.frozen_agents, args.backend)
         if args.train_one else []
@@ -410,7 +399,7 @@ def train(args) -> None:
 
         history = History()
         env, rl_agents, _ = build_env(
-            backends=backends, backends_b=twins, epsilon=epsilon, learning=True,
+            backends=backends, epsilon=epsilon, learning=True,
             num_rl=args.num_rl, num_heuristic=args.num_heuristic,
             horizon=args.horizon, seed=args.seed + episode,
             review_paradigm=args.review_paradigm, gamma=args.gamma,
@@ -446,13 +435,21 @@ def train(args) -> None:
     if training_log:
         save_training_outputs(training_log, open_chart_flag=args.open)
 
-    best_index = evaluate(backends, twins, args, frozen_backends)
+    best_index = evaluate(backends, args, frozen_backends)
 
     # The saved file is the table the simulation will load for every RL agent.
     # With --train-one that table is the single agent that was trained.
     if args.episodes and not args.no_save:
-        save_path = save_best_policy(backends, twins, args, best_index)
+        save_path = save_best_policy(backends, args, best_index)
         print(f"Saved best policy to {save_path}")
+
+    from policy_view import emit_policy_chart
+
+    emit_policy_chart(
+        backends[best_index],
+        title="RL policy (highest academic capital)",
+        publishing=SIM.continuous_publishing,
+    )
 
     if training_log:
         if args.no_archive:
@@ -463,7 +460,7 @@ def train(args) -> None:
             prompt_and_archive_training(training_log, args)
 
 
-def evaluate(backends, twins, args, frozen_backends=None) -> int:
+def evaluate(backends, args, frozen_backends=None) -> int:
     """Greedy (ε=0, no learning) evaluation. Returns the best agent's index.
 
     Best means the highest academic capital on this fresh seed. Ties keep the
@@ -472,7 +469,7 @@ def evaluate(backends, twins, args, frozen_backends=None) -> int:
     rl_talent = args.low_talent_value if args.low_talent else 1.0
     history = History()
     env, rl_agents, heuristics = build_env(
-        backends=backends, backends_b=twins, epsilon=0.0, learning=False,
+        backends=backends, epsilon=0.0, learning=False,
         num_rl=args.num_rl, num_heuristic=args.num_heuristic,
         horizon=args.horizon, seed=args.seed + 10_000,
         review_paradigm=args.review_paradigm,
@@ -517,7 +514,7 @@ def parse_args(argv=None):
     p = argparse.ArgumentParser(
         description="Train the Liberata Q-learning agent."
     )
-    p.add_argument("--backend", choices=["tabular", "linear"],
+    p.add_argument("--backend", choices=["tabular"],
                    default=SIM.rl_backend)
     p.add_argument("--episodes", type=int, default=None)
     p.add_argument("--timesteps", dest="timesteps", type=int, default=TRAIN.timesteps)
@@ -528,7 +525,7 @@ def parse_args(argv=None):
     p.add_argument("--review-paradigm", choices=["continuous", "discrete"],
                    default=SIM.review_paradigm)
     p.add_argument("--alpha", type=float, default=None,
-                   help="learning rate (defaults: 0.1 tabular / 0.01 linear)")
+                   help="learning rate (default 0.1)")
     p.add_argument("--gamma", type=float, default=SIM.rl_gamma)
     p.add_argument("--eps-start", dest="eps_start", type=float,
                    default=TRAIN.eps_start)

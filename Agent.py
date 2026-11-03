@@ -81,10 +81,18 @@ class ActionRecord:
     writing_effort: float | None = None
 
 
+def ownership_papers() -> list[Paper]:
+    """Papers whose shares count as ownership, including training-supply holdings."""
+    extra = Agent.training_supply_holdings
+    if not extra:
+        return Agent.all_papers
+    return [*Agent.all_papers, *extra]
+
+
 def portfolio_accrual_rate(agent: "Agent", papers: list[Paper] | None = None) -> float:
     """Share-weighted sum of accrual rates on papers this agent owns."""
     if papers is None:
-        papers = Agent.all_papers
+        papers = ownership_papers()
     total = 0.0
     for paper in papers:
         share = paper.share_distribution.get(agent, 0.0)
@@ -97,6 +105,9 @@ class Agent(ABC):
 
     all_papers: list[Paper] = []  # class variable shared across all agents
     all_agents: list[Agent] = []  # live roster for cross-agent signals (e.g. RL rank)
+    # Reviewed training-supply papers. Kept off ``all_papers`` so citation and
+    # history scans stay on the real corpus. Empty unless that training mode is on.
+    training_supply_holdings: list[Paper] = []
 
     def __init__(
         self,

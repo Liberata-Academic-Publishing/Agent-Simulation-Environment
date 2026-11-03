@@ -3104,6 +3104,116 @@ def render_gallery_charts(
     return produced
 
 
+_POLICY_COLORS = {
+    "write": "#2563eb",
+    "claim": "#16a34a",
+    "continue": "#059669",
+    "finish and write": "#d97706",
+    "claim new": "#7c3aed",
+    "finish research": "#0284c7",
+    "bad-faith claim": "#dc2626",
+    "good-faith claim": "#15803d",
+}
+
+
+def _draw_policy_bars(ax, view) -> None:
+    """Horizontal bars of the stateless action values."""
+    labels = list(view.action_labels)
+    values = list(view.reference_q)
+    positions = list(range(len(labels)))
+    colors = [
+        _POLICY_COLORS.get(label, "#64748b") if label in view.offered else "#cbd5e1"
+        for label in labels
+    ]
+    ax.barh(positions, values, color=colors)
+    span = max((abs(value) for value in values), default=1.0) or 1.0
+    lo = min(0.0, min(values, default=0.0))
+    hi = max(0.0, max(values, default=0.0))
+    ax.set_xlim(lo - 0.08 * span, hi + 0.28 * span)
+    for position, value in zip(positions, values):
+        text = f"{value:.4g}"
+        if value >= 0:
+            ax.text(value, position, f"  {text}", va="center", ha="left", fontsize=8)
+        else:
+            ax.text(value, position, f"{text}  ", va="center", ha="right", fontsize=8)
+    ax.set_yticks(positions)
+    ax.set_yticklabels(labels)
+    ax.invert_yaxis()
+    ax.axvline(0, color="#94a3b8", linewidth=0.8)
+    ax.set_xlabel("Q-value")
+    ax.set_title("Action values")
+
+
+def _draw_policy_sweep(ax, sweep) -> None:
+    """Q-values along one axis, with the greedy action shaded behind them."""
+    import textwrap
+
+    from policy_view import decision_summary
+
+    count = len(sweep.labels)
+    positions = list(range(count))
+    flat = [value for series in sweep.q for value in series]
+    lo = min(flat) if flat else 0.0
+    hi = max(flat) if flat else 1.0
+    pad = 1.0 if hi == lo else (hi - lo) * 0.28
+    for index, action in enumerate(sweep.chosen):
+        ax.axvspan(
+            index - 0.5,
+            index + 0.5,
+            color=_POLICY_COLORS.get(action, "#94a3b8"),
+            alpha=0.16,
+            zorder=0,
+        )
+    for name, series in zip(sweep.action_names, sweep.q):
+        ax.plot(
+            positions,
+            series,
+            marker="o",
+            linewidth=2.0,
+            color=_POLICY_COLORS.get(name, "#64748b"),
+            label=name,
+            zorder=2,
+        )
+    if sweep.marker_index is not None:
+        ax.axvline(
+            sweep.marker_index,
+            color="#dc2626",
+            linestyle="--",
+            linewidth=1.0,
+            label=sweep.marker_label or "threshold",
+            zorder=1,
+        )
+    ax.set_xlim(-0.5, max(count - 0.5, 0.5))
+    ax.set_ylim(lo - pad * 0.2, hi + pad)
+    ax.set_xticks(positions)
+    ax.set_xticklabels(sweep.labels, rotation=45, ha="right", fontsize=8)
+    ax.set_xlabel(sweep.xlabel)
+    ax.set_ylabel("Q-value")
+    summary = textwrap.fill(decision_summary(sweep.labels, sweep.chosen), width=40)
+    ax.set_title(f"{sweep.title}\n{summary}", fontsize=10)
+    ax.legend(fontsize=7, loc="best")
+
+
+def plot_agent_policy(view, path: str | None = None, show: bool = False):
+    """Q-values and the greedy action at each share, effort, and progress."""
+    panels = len(view.sweeps) or 1
+    if view.reference_q is not None:
+        fig = plt.figure(figsize=(4.6 * panels, 9.2), layout="constrained")
+        grid = fig.add_gridspec(2, panels, height_ratios=[1.0, 1.45])
+        _draw_policy_bars(fig.add_subplot(grid[0, :]), view)
+        axes = [fig.add_subplot(grid[1, index]) for index in range(panels)]
+    else:
+        fig, axes = plt.subplots(
+            1, panels, figsize=(4.6 * panels, 5.4), squeeze=False, layout="constrained"
+        )
+        axes = list(axes[0])
+    for axis, sweep in zip(axes, view.sweeps):
+        _draw_policy_sweep(axis, sweep)
+    fig.suptitle(view.title, fontsize=13, fontweight="bold")
+    fig.supxlabel(view.note, fontsize=8, color="#334155")
+    return _finish(fig, path, show)
+
+
 def plot_all(
     history: "History", outdir: str = "runs", *, show: bool = False
 ) -> dict[str, str]:

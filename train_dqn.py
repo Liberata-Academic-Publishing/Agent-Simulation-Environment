@@ -84,6 +84,7 @@ def build_env(
         forecast_horizon_timesteps=horizon,
         review_paradigm=review_paradigm,
         history=history,
+        unlimited_review_supply=TRAIN_DQN.unlimited_review_supply,
     )
     return env, dqn_agents, heuristics
 
@@ -180,6 +181,10 @@ def train(args) -> None:
         os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
         backend.save(save_path)
         print(f"Saved DQN policy to {save_path}")
+
+    from policy_view import emit_policy_chart
+
+    emit_policy_chart(backend, title="DQN policy")
 
     if training_log:
         if args.no_archive:
