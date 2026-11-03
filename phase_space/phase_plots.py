@@ -6,7 +6,8 @@ corner: all time goes to the highest-rate action. Each plot varies two payoff
 parameters, colors every grid cell by its winning action, and overlays the
 analytic boundaries (where two rates are equal). Exercises 4 to 6 add paper
 progress, active review effort and the best offered share, making four, five
-and six axes, and show them two at a time.
+and six axes, and show them two at a time. Exercise 7 keeps only features the
+agent observes on the axes, with payoffs taken from config.py.
 
 Run: python phase_space/phase_plots.py
 Figures are written to phase_space/figures/.
@@ -148,6 +149,12 @@ TALENT_POINTS = {
 }
 
 
+def mean_paper_timesteps() -> float:
+    if SIM.paper_effort_mode == "fixed":
+        return SIM.continuous_paper_timesteps
+    return (SIM.paper_effort_min + SIM.paper_effort_max) / 2
+
+
 def settings_payoff_rates() -> dict[str, tuple[float, float, float]]:
     """(talent, a, p) per talent level, computed from config.py defaults (AC per effort).
 
@@ -160,10 +167,7 @@ def settings_payoff_rates() -> dict[str, tuple[float, float, float]]:
        projected value. Multipliers (adaptive, scarcity, quality, history) = 1.
     """
     horizon = SIM.forecast_horizon_timesteps
-    if SIM.paper_effort_mode == "fixed":
-        t_m = SIM.continuous_paper_timesteps
-    else:
-        t_m = (SIM.paper_effort_min + SIM.paper_effort_max) / 2
+    t_m = mean_paper_timesteps()
 
     def review(reviewer_talent: float) -> tuple[float, float, float]:
         eps = review_accrual_bump(T_G, quality=reviewer_talent)
@@ -379,17 +383,220 @@ def pair_figure(keys: tuple[str, ...], ncols: int, name: str, title: str, rates_
                           if key not in (x_key, y_key))
         style_axes(ax, PAIR_LABELS[x_key], PAIR_LABELS[y_key], held)
 
-    # Placed above the axes; save() crops the figure out to include them.
+    add_header(fig, height, title,
+               f"Highest rate wins:  {rates_text},  with talent fixed at τ = {PAIR_TAU:g}")
+    return save(fig, name)
+
+
+def add_header(fig, height: float, title: str, subtitle: str) -> None:
+    """Title, subtitle and region legend above the axes; save() crops out to include them."""
     fig.suptitle(title, x=0.012, y=1 + 0.52 / height, ha="left", fontsize=14,
                  color=TEXT_PRIMARY)
-    fig.text(0.012, 1 + 0.11 / height,
-             f"Highest rate wins:  {rates_text},  with talent fixed at τ = {PAIR_TAU:g}",
-             fontsize=10, color=TEXT_SECONDARY)
+    fig.text(0.012, 1 + 0.11 / height, subtitle, fontsize=10, color=TEXT_SECONDARY)
     handles = [Patch(facecolor=tint(COLORS[key]), edgecolor=GRID, label=NAMES[key])
                for key in ("A", "GF", "BF")]
     fig.legend(handles=handles, loc="upper right", bbox_to_anchor=(0.995, 1 + 0.56 / height),
                ncols=3, frameon=False, fontsize=10, labelcolor=TEXT_SECONDARY)
-    return save(fig, name)
+
+
+# --- Exercise 7: only features the agent observes ---------------------------
+
+# The axes are RL features; payoffs come from config.py, as in Exercise 1. The
+# share axis is log-scaled over the RL feature's range, as the agent sees it.
+OBS_LIMITS = {
+    "pi": (0.0, 0.99),
+    "s": (np.log10(SIM.rl_share_feature_min), np.log10(SIM.rl_share_feature_max)),
+}
+OBS_LABELS = {"pi": "Paper progress, π", "s": "Best offered share, s"}
+SHARE_TICKS = [1e-4, 1e-3, 1e-2, 0.1, 0.5]
+
+
+def review_values(tau: float) -> tuple[float, float]:
+    """Projected value of a fresh quality-1.0 paper after a bad- and a good-faith review."""
+    horizon = SIM.forecast_horizon_timesteps
+    rate = accrual_rate_from_quality(1.0)
+    bad = projected_paper_ac(0.0, rate, review_accrual_bump(T_B, quality=tau), horizon)
+    good = projected_paper_ac(0.0, rate, review_accrual_bump(T_G, quality=tau), horizon)
+    return bad, good
+
+
+def observed_rates(pi, e, s, a: float, values: tuple[float, float]) -> dict[str, np.ndarray]:
+    """Payoff per step of the work left for each choice, at one agent state.
+
+    A review pays share s of the paper's value whether it is good or bad faith;
+    good faith adds that review's bump to the value. Before T_B steps of effort
+    both kinds of review still have work left. From T_B on, the bad-faith pay can
+    be taken at once, so continuing earns only the extra value good faith adds,
+    and the alternatives are taking it and then authoring or starting another
+    bad-faith review. A fresh good-faith review never beats a fresh bad-faith one
+    (V_G / T_G < V_B / T_B), so it is left out.
+    """
+    pi, e, s = np.broadcast_arrays(pi, e, s)
+    bad, good = values
+    early = e < T_B
+    gf = np.where(early, s * good / (T_G - e), s * (good - bad) / (T_G - e))
+    bf = np.where(early, s * bad / np.maximum(T_B - e, 1e-9), s * bad / T_B)
+    return {"A": a / (1 - pi), "GF": gf, "BF": bf}
+
+
+def share_label(share: float) -> str:
+    return f"{100 * share:g}%"
+
+
+def exercise_7() -> str:
+    """Paper progress and offered share for a free agent, one panel per talent level."""
+    n = 401
+    talents = {label: point for label, point in settings_payoff_rates().items()
+               if label in ("Min talent", "Max talent")}
+    height = 4.7
+    fig, axes = plt.subplots(1, len(talents), figsize=(5.17 * len(talents), height),
+                             facecolor=SURFACE)
+    pi = np.linspace(*OBS_LIMITS["pi"], n)
+    log_s = np.linspace(*OBS_LIMITS["s"], n)
+    PI, LOG_S = np.meshgrid(pi, log_s)
+    for ax, (label, (tau, a, _)) in zip(axes, talents.items()):
+        rates = observed_rates(PI, 0.0, 10 ** LOG_S, a, review_values(tau))
+        draw_regions(ax, pi, log_s, rates)
+        draw_boundaries(ax, pi, log_s, rates)
+        style_axes(ax, OBS_LABELS["pi"], OBS_LABELS["s"], f"{label} (τ = {tau:g})")
+        ax.set_yticks(np.log10(SHARE_TICKS), [share_label(t) for t in SHARE_TICKS])
+
+    add_header(fig, height, "Paper progress and offered share",
+               "Highest payoff per remaining step wins.  A review pays share s of a fresh"
+               " paper's value; good faith adds its bump.")
+    return save(fig, "ex7_observed_features.png")
+
+
+# --- Exercise 8: paper progress, offered share and reputation ---------------
+
+# Reputation is the agent's epsilon history: the mean epsilon of its completed
+# reviews. A new review moves it 1 / (n + 1) of the way toward that review's
+# epsilon. The sim's n grows with every review; here it is held fixed.
+REPUTATION_BASE = SIM.prior_review_epsilon   # a new agent's epsilon history
+REPUTATION_REVIEWS = 10
+REPUTATION_WEIGHT = 1 / (REPUTATION_REVIEWS + 1)
+REP_GRID = np.linspace(0.0, SIM.rl_reputation_feature_max, 129)
+REP_BASE = {"pi": 0.0, "s": SHARE_REF, "r": REPUTATION_BASE}
+# Share and reputation are log-scaled over the RL features' ranges.
+REP_LIMITS = {
+    "pi": (0.0, 0.99),
+    "s": OBS_LIMITS["s"],
+    "r": (np.log10(SIM.rl_reputation_feature_min), np.log10(SIM.rl_reputation_feature_max)),
+}
+REP_LABELS = {
+    "pi": "Paper progress, π",
+    "s": "Best offered share, s",
+    "r": "Reputation, r  (mean review ε)",
+}
+REP_PANELS = [("pi", "s"), ("pi", "r"), ("s", "r")]
+REPUTATION_TICKS = [0.02, 0.04, 0.08, 0.16, 0.32, 0.64]
+
+
+def review_epsilons(tau: float) -> tuple[float, float]:
+    """Review effect of a bad- and a good-faith review by a reviewer of talent tau."""
+    return review_accrual_bump(T_B, quality=tau), review_accrual_bump(T_G, quality=tau)
+
+
+def reputation_offer(r) -> np.ndarray:
+    """The sim's fair-market offer to a reviewer with reputation r, on a fresh paper.
+
+    Other multipliers are 1, and the market's mean reputation is taken as the prior.
+    """
+    r = np.asarray(r, dtype=float)
+    fair = SIM.reviewer_surplus_share * r / (1 + r)
+    history = np.maximum(0.0, 1 + SIM.history_price_scale * (r - SIM.prior_review_epsilon))
+    return np.clip(fair * history, SIM.min_offer_share, 1.0)
+
+
+def lookup(W_ext: np.ndarray, x, r) -> np.ndarray:
+    """W_ext at fractional paper step x and reputation r, interpolated linearly."""
+    j = np.interp(r, REP_GRID, np.arange(REP_GRID.size))
+    j0 = np.minimum(np.floor(j).astype(int), REP_GRID.size - 2)
+    i0 = np.minimum(np.floor(x).astype(int), W_ext.shape[0] - 2)
+    fj, fx = j - j0, x - i0
+
+    def row(i):
+        return W_ext[i, j0] * (1 - fj) + W_ext[i, j0 + 1] * fj
+
+    return row(i0) * (1 - fx) + row(i0 + 1) * fx
+
+
+def reputation_q(x, s, r, W, a: float, values, epsilons,
+                 weight: float = REPUTATION_WEIGHT) -> dict[str, np.ndarray]:
+    """Value of writing for a step, or doing a good- or bad-faith review, from one state.
+
+    x is paper steps done. W is the agent's value at each paper step and reputation
+    when it acts optimally afterwards, with later offers set by reputation. A paper
+    pays a * steps on completion; a review pays s * value when it finishes, keeps
+    paper progress where it is, and moves reputation toward its epsilon.
+    """
+    x, s, r = np.broadcast_arrays(x, s, r)
+    steps = W.shape[0]
+    W_ext = np.vstack([W, a * steps + W[:1]])   # reaching the last step publishes
+    gamma = SIM.rl_gamma
+    (bad, good), (eps_bad, eps_good) = values, epsilons
+    return {
+        "A": gamma * lookup(W_ext, x + 1, r),
+        "GF": gamma ** T_G * (s * good + lookup(W_ext, x, r + weight * (eps_good - r))),
+        "BF": gamma ** T_B * (s * bad + lookup(W_ext, x, r + weight * (eps_bad - r))),
+    }
+
+
+def solve_reputation(a: float, values, epsilons, weight: float = REPUTATION_WEIGHT) -> np.ndarray:
+    """Value iteration for a free agent over (paper step, reputation)."""
+    steps = int(round(mean_paper_timesteps()))
+    x = np.arange(steps, dtype=float)[:, None]
+    r = REP_GRID[None, :]
+    W = np.zeros((steps, REP_GRID.size))
+    for _ in range(100_000):
+        q = reputation_q(x, reputation_offer(r), r, W, a, values, epsilons, weight)
+        new = np.max(np.stack(list(q.values())), axis=0)
+        if np.abs(new - W).max() < 1e-9 * np.abs(new).max():
+            return new
+        W = new
+    raise RuntimeError("value iteration did not converge")
+
+
+def exercise_8() -> str:
+    """Paper progress, offered share and reputation, one row per talent level."""
+    n = 401
+    talents = {label: point for label, point in settings_payoff_rates().items()
+               if label in ("Min talent", "Max talent")}
+    height = 4.7 * len(talents)
+    fig, axes = plt.subplots(len(talents), len(REP_PANELS),
+                             figsize=(5.17 * len(REP_PANELS), height), facecolor=SURFACE)
+    for row, (label, (tau, a, _)) in zip(axes, talents.items()):
+        values, epsilons = review_values(tau), review_epsilons(tau)
+        W = solve_reputation(a, values, epsilons)
+        for ax, (x_key, y_key) in zip(row, REP_PANELS):
+            x = np.linspace(*REP_LIMITS[x_key], n)
+            y = np.linspace(*REP_LIMITS[y_key], n)
+            grids = dict(zip((x_key, y_key), np.meshgrid(x, y)))
+            state = {**REP_BASE, **{key: grid if key == "pi" else 10 ** grid
+                                    for key, grid in grids.items()}}
+            steps = W.shape[0]
+            rates = reputation_q(state["pi"] * steps, state["s"], state["r"], W, a,
+                                 values, epsilons)
+            draw_regions(ax, x, y, rates)
+            draw_boundaries(ax, x, y, rates)
+
+            (held,) = [key for key in REP_BASE if key not in (x_key, y_key)]
+            held_text = {"pi": "π = 0", "s": f"s = {share_label(REP_BASE['s'])}",
+                         "r": f"r = {REP_BASE['r']:g}"}[held]
+            style_axes(ax, REP_LABELS[x_key], REP_LABELS[y_key],
+                       f"{label} (τ = {tau:g}),  {held_text}")
+            if x_key == "s":
+                ax.set_xticks(np.log10(SHARE_TICKS), [share_label(t) for t in SHARE_TICKS])
+            if y_key == "s":
+                ax.set_yticks(np.log10(SHARE_TICKS), [share_label(t) for t in SHARE_TICKS])
+            if y_key == "r":
+                ax.set_yticks(np.log10(REPUTATION_TICKS), [f"{t:g}" for t in REPUTATION_TICKS])
+
+    add_header(fig, height, "What the agent sees, with reputation: paper progress, offered share, reputation",
+               f"Best long-run value wins (γ = {SIM.rl_gamma:g}).  A review pays share s now; later"
+               f" offers follow reputation, which each review moves 1/{REPUTATION_REVIEWS + 1}"
+               " of the way toward its ε.")
+    return save(fig, "ex8_reputation.png")
 
 
 def exercise_4() -> str:
@@ -430,12 +637,31 @@ def sanity_checks() -> None:
     low, high = pair_rates(1.0, g, b, 0.0, s=0.01), pair_rates(1.0, g, b, 0.0, s=0.10)
     assert (np.sign(low["GF"] - low["BF"]) == np.sign(high["GF"] - high["BF"])).all()
     assert best_action(pair_rates(1.0, 3.0, 3.0, 0.0, s=0.0)) == 0
+    # Exercise 7: a fresh review never favors good faith, a tiny offer means
+    # authoring, and good faith wins only with a review nearly finished.
+    for tau, a, _ in settings_payoff_rates().values():
+        values = review_values(tau)
+        pi, s = np.meshgrid(np.linspace(0, 0.99, 41), np.logspace(-4, np.log10(0.5), 41))
+        assert (best_action(observed_rates(pi, 0.0, s, a, values)) != 1).all()
+        assert best_action(observed_rates(0.0, 0.0, 1e-4, a, values)) == 0
+        assert best_action(observed_rates(0.0, 0.99 * T_G, 0.1, a, values)) == 1
+    # Exercise 8: with reputation frozen, good faith never pays; with it moving,
+    # more reputation is never worth less.
+    _, a, _ = settings_payoff_rates()["Mid talent"]
+    values, epsilons = review_values(1.0), review_epsilons(1.0)
+    x = np.arange(int(round(mean_paper_timesteps())), dtype=float)[:, None]
+    r = REP_GRID[None, :]
+    frozen = solve_reputation(a, values, epsilons, weight=0.0)
+    q = reputation_q(x, reputation_offer(r), r, frozen, a, values, epsilons, weight=0.0)
+    assert (best_action(q) != 1).all()
+    W = solve_reputation(a, values, epsilons)
+    assert (np.diff(W, axis=1) >= -1e-9 * np.abs(W).max()).all()
 
 
 def main() -> None:
     sanity_checks()
     paths = [exercise_1(), exercise_2_rates(), exercise_2_ratio(), exercise_3(),
-             exercise_4(), exercise_5(), exercise_6()]
+             exercise_4(), exercise_5(), exercise_6(), exercise_7(), exercise_8()]
     print(f"T_B = {T_B:g}, T_G = {T_G:g}  (from config.py)")
     print("Boundaries:")
     print("  Ex1: a = p")
@@ -446,6 +672,10 @@ def main() -> None:
     print("  Ex4: A | GF g = a / (1 - pi);  A | BF b = tau * a / (1 - pi);  GF | BF b = tau * g")
     print(f"  Ex5: as Ex4, with g replaced by g / (1 - e / {T_G:g})")
     print(f"  Ex6: as Ex5, with g and b both scaled by s / {SHARE_REF:g}")
+    print("  Ex7: a fresh review favors bad faith; good faith wins only with fewer than"
+          " eps_G * T_B review steps left")
+    print(f"  Ex8: value iteration with gamma = {SIM.rl_gamma:g}; each review moves reputation"
+          f" 1/{REPUTATION_REVIEWS + 1} toward its epsilon")
     for path in paths:
         print("wrote", os.path.relpath(path))
 
