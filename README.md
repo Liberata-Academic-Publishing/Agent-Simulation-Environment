@@ -74,3 +74,13 @@ review behavior plots.
 ## Reinforcement-learning agents
 
 `train_rl.py` trains a Q-learning agent against heuristic opponents. Note that the action space and feature vector changed with the single-review marketplace overhaul, so any policy saved before that change (in `policies/`) is incompatible and must be retrained. `run_simulation.py` defaults to heuristic agents; pass `--rl-agents N` to include RL agents.
+
+
+### Experimental AC/price reviewer marketplace
+
+An opt-in, bounded-search bidding mechanism lets reviewers quote ownership
+shares and authors select by existing academic capital divided by the quote.
+It supports fixed heuristic/random strategies; legacy remains the default.
+See [mechanism and evaluation](design_docs/ac_review_market.md) for parameters,
+assumptions, run commands and the paired comparison script. No RL training is
+needed for the pilot.

@@ -37,6 +37,15 @@ class SimConfig:
     forecast_horizon_timesteps: int = 30
     output_dir: str = "runs"
 
+    # --- Sampled reviewer bidding (opt-in; legacy remains the control) ---
+    market_mechanism: str = "legacy"  # "legacy" | "sampled_bidding"
+    market_candidate_limit: int = 5
+    market_ac_bin_edges: tuple[float, ...] = (1.0, 10.0, 100.0, 1000.0)
+    market_min_reviewer_ac: float = 0.0
+    market_share_tick: float = 0.0001
+    market_default_ask_share: float = 0.005
+    market_author_max_share: float = 0.05
+
     # --- Initial papers --------------------------------------------------
     # Papers seeded before timestep 1 (bootstraps review material). Set
     # init_papers_per_agent=0 for no starting papers, or init_ac_min=init_ac_max=0

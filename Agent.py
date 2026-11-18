@@ -179,6 +179,26 @@ class Agent(ABC):
         self.total_review_epsilon: float = 0.0
         self.completed_review_count: int = 0
 
+    # ---- sampled-market strategy hooks ----------------------------------
+    def review_market_request(self, paper, config):
+        """None withholds review; shares are fractions of the whole paper."""
+        if not getattr(self, "request_reviews_enabled", True):
+            return None
+        return (getattr(self, "review_min_ac", config.market_min_reviewer_ac),
+                getattr(self, "review_max_share", config.market_author_max_share))
+
+    def review_ask_share(self, config):
+        return getattr(self, "review_ask", config.market_default_ask_share)
+
+    def offer_review_this_step(self):
+        raise NotImplementedError("agent needs a sampled-market participation policy")
+
+    def accept_review_offer(self, paper, share):
+        raise NotImplementedError("agent needs a sampled-market acceptance policy")
+
+    def choose_market_work_action(self):
+        raise NotImplementedError("agent needs a market-only work policy")
+
     # ---- action interface (two phases per timestep) ----------------------
     @abstractmethod
     def choose_marketplace_action(self) -> Paper | None:
@@ -540,6 +560,7 @@ class Agent(ABC):
         self,
         paper: Paper,
         review_kind: str | None = None,
+        agreed_share: float | None = None,
     ) -> ActionRecord | None:
         """Select ``paper`` to review, finalizing any active review first.
 
@@ -548,11 +569,15 @@ class Agent(ABC):
         :meth:`apply_initial_review_effort`. Returns a record only when an
         existing review was finalized to make room (otherwise ``None``).
         """
+        if agreed_share is not None and self.active_review_paper is not None:
+            raise ValueError("explicit market contracts require an idle reviewer")
         finished = None
         if self.active_review_paper is not None:
             finished = self._finalize_active_review()
 
-        paper.start_review(self, current_timestep=self.current_timestep)
+        if not paper.start_review(self, current_timestep=self.current_timestep,
+                                  agreed_share=agreed_share):
+            raise ValueError("paper cannot start this review")
         self.active_review_paper = paper
         self.active_review_effort = 0.0
         self.review_progress = 0.0
@@ -582,7 +607,12 @@ class Agent(ABC):
         review yields two: the finished review and the newly started one).
         """
         self._clear_last_review_result()
-        kind, paper = self.choose_continuous_action()
+        if getattr(self, "sampled_market_enabled", False):
+            kind, paper = self.choose_market_work_action()
+            if kind == CONTINUOUS_CLAIM:
+                raise RuntimeError("new reviews require marketplace agreement")
+        else:
+            kind, paper = self.choose_continuous_action()
 
         if kind == CONTINUOUS_CLAIM and paper is not None and paper.can_start_review(self):
             records: list[ActionRecord] = []

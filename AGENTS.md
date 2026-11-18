@@ -59,6 +59,16 @@ CLI flags for one-off overrides.
 - **DQN settings** are separate (`num_dqn_agents`, `dqn_*` hyperparameters);
   train with `train_dqn.py`, policies saved to `policies/policy_dqn.pkl`.
 
+## Sampled reviewer bidding (workstream 2)
+
+- Optional `market_mechanism="sampled_bidding"` uses current reviewer AC / ask,
+  bounded AC-bucket sampling, author budgets and explicit locked shares.
+- Fixed heuristic/random strategies only in v1; no RL training/adapters yet.
+- Design/parameters: `design_docs/ac_review_market.md`.
+- Tests: `python -m unittest test_review_market`.
+- Paired pilot: `python compare_review_markets.py` (no training or archive).
+- `legacy` remains the default/control; original pricing is bypassed in new mode.
+
 ## Architecture map
 
 - `config.py` - `SimConfig` (`SIM`) and `TrainConfig` (`TRAIN`) dataclasses;

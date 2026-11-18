@@ -592,14 +592,18 @@ class Paper:
         self,
         agent: Agent,
         current_timestep: int | None = None,
+        agreed_share: float | None = None,
     ) -> bool:
         """Claim the paper for review: permanently delist it and lock the price."""
         if not self.can_start_review(agent):
             return False
+        share = self.offered_share(agent) if agreed_share is None else self._validate_share_value(agreed_share, "agreed_share")
+        if agreed_share is not None and share > min(self.share_distribution.get(self.author, 0.0), self.max_reviewer_share):
+            raise ValueError("agreed share exceeds available author ownership or review cap")
         self.review_in_progress_by = agent
         self.review_claimed = True
         self.market_listed = False
-        self.agreed_review_share = self.offered_share(agent)
+        self.agreed_review_share = share
         if current_timestep is not None:
             self.claimed_timestep = int(current_timestep)
             if self.listed_timestep is not None:
@@ -608,7 +612,7 @@ class Paper:
                     self.claimed_timestep - int(self.listed_timestep),
                 )
             feedback = getattr(self.author, "record_review_claim_feedback", None)
-            if feedback is not None:
+            if feedback is not None and agreed_share is None:
                 feedback(self.time_on_market_timesteps, claimer=agent)
         return True
 

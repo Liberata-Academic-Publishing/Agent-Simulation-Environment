@@ -1,0 +1,200 @@
+
+Simulation finished after 30 timesteps
+Agents: 4
+Papers: 40
+Review paradigm: continuous
+Continuous publishing: threshold
+- auto-publish after 50 writing-effort timesteps
+
+Marketplace overview
+- papers reviewed: 22/40
+- good-faith reviews: 11
+- bad-faith reviews: 11
+- papers on market (unclaimed): 14
+- papers in review right now: 4
+- fair-market review price: 4.76%
+- mean reviewer epsilon: 0.337
+- market diagnostics: listed this step=0, claimed this step=1, instant-claim rate=0.0%, mean time on market=14.65 ts
+- mean author offer multiplier: 1.000
+- paper quality: mean=1.00, min=0.60, max=1.40
+- capital Gini (inequality): 0.214
+
+Top reviewers (by reputation = share-weighted accrual rate per review)
+- Agent 1: reputation=0.01 epsilon=0.480 over 4 reviews
+- Agent 2: reputation=0.01 epsilon=0.480 over 4 reviews
+- Random Agent 2: reputation=0.01 epsilon=0.204 over 7 reviews
+- Random Agent 1: reputation=0.01 epsilon=0.186 over 7 reviews
+
+Action counts
+- review_continued: 64
+- review_started: 26
+- review_finished_write: 22
+- write_paper: 8
+
+Agent type comparison
+- RandomAgent: agents=2, mean AC=327.52, papers=20, reviews=14 (good=3, bad=11, good%=21.4), avg effort=2.36, good/agent=1.5, bad/agent=5.5, mean reputation=0.01, mean epsilon=0.195
+- HeuristicAgent: agents=2, mean AC=324.38, papers=20, reviews=8 (good=8, bad=0, good%=100.0), avg effort=6.00, good/agent=4.0, bad/agent=0.0, mean reputation=0.01, mean epsilon=0.480
+
+Top and bottom agents
+- top: Agent 2 (HeuristicAgent), AC=464.85, papers=10, reviews=4 (good=4, bad=0), avg review effort=6.00, top actions: review_continued=21, review_started=5, review_finished_write=4
+- top: Random Agent 2 (RandomAgent), AC=464.03, papers=10, reviews=7 (good=2, bad=5), avg review effort=2.29, top actions: review_continued=9, review_started=8, review_finished_write=7
+- top: Random Agent 1 (RandomAgent), AC=191.01, papers=10, reviews=7 (good=1, bad=6), avg review effort=2.43, top actions: review_continued=13, review_started=8, review_finished_write=7
+- bottom: Agent 1 (HeuristicAgent), AC=183.92, papers=10, reviews=4 (good=4, bad=0), avg review effort=6.00, top actions: review_continued=21, review_started=5, review_finished_write=4
+- bottom: Random Agent 1 (RandomAgent), AC=191.01, papers=10, reviews=7 (good=1, bad=6), avg review effort=2.43, top actions: review_continued=13, review_started=8, review_finished_write=7
+- bottom: Random Agent 2 (RandomAgent), AC=464.03, papers=10, reviews=7 (good=2, bad=5), avg review effort=2.29, top actions: review_continued=9, review_started=8, review_finished_write=7
+
+Final agent capital
+- Agent 2: AC=464.85
+- Random Agent 2: AC=464.03
+- Random Agent 1: AC=191.01
+- Agent 1: AC=183.92
+
+Papers produced by agent
+- Agent 1: 10
+- Agent 2: 10
+- Random Agent 1: 10
+- Random Agent 2: 10
+
+Papers
+- Paper 1: author=Agent 1, quality=0.60, AC=19.03, rate=0.65, status=reviewed, reviewer shares=Random Agent 2=0.50%
+- Paper 2: author=Agent 1, quality=0.60, AC=18.26, rate=0.65, status=reviewed, reviewer shares=Random Agent 1=0.50%
+- Paper 3: author=Agent 1, quality=0.60, AC=18.77, rate=0.65, status=reviewed, reviewer shares=Random Agent 1=0.50%
+- Paper 4: author=Agent 1, quality=0.60, AC=18.00, rate=0.60, status=in review, reviewer shares=none
+- Paper 5: author=Agent 1, quality=0.60, AC=18.43, rate=0.74, status=reviewed, reviewer shares=Agent 2=0.50%
+- Paper 6: author=Agent 1, quality=0.60, AC=18.62, rate=0.62, status=reviewed, reviewer shares=Random Agent 1=0.50%
+- Paper 7: author=Agent 1, quality=0.60, AC=18.00, rate=0.60, status=in review, reviewer shares=none
+- Paper 8: author=Agent 1, quality=0.60, AC=18.66, rate=0.62, status=reviewed, reviewer shares=Random Agent 1=0.50%
+- Paper 9: author=Agent 1, quality=0.60, AC=18.00, rate=0.60, status=on market, reviewer shares=none
+- Paper 10: author=Agent 1, quality=0.60, AC=18.00, rate=0.60, status=on market, reviewer shares=none
+- Paper 11: author=Agent 2, quality=1.40, AC=52.96, rate=1.86, status=reviewed, reviewer shares=Random Agent 2=0.50%
+- Paper 12: author=Agent 2, quality=1.40, AC=42.00, rate=1.40, status=in review, reviewer shares=none
+- Paper 13: author=Agent 2, quality=1.40, AC=42.00, rate=1.40, status=on market, reviewer shares=none
+- Paper 14: author=Agent 2, quality=1.40, AC=47.48, rate=2.31, status=reviewed, reviewer shares=Random Agent 2=0.50%
+- Paper 15: author=Agent 2, quality=1.40, AC=42.00, rate=1.40, status=on market, reviewer shares=none
+- Paper 16: author=Agent 2, quality=1.40, AC=42.00, rate=1.40, status=on market, reviewer shares=none
+- Paper 17: author=Agent 2, quality=1.40, AC=43.87, rate=1.52, status=reviewed, reviewer shares=Random Agent 2=0.50%
+- Paper 18: author=Agent 2, quality=1.40, AC=61.20, rate=2.47, status=reviewed, reviewer shares=Random Agent 1=0.50%
+- Paper 19: author=Agent 2, quality=1.40, AC=49.86, rate=1.68, status=reviewed, reviewer shares=Random Agent 2=0.50%
+- Paper 20: author=Agent 2, quality=1.40, AC=42.00, rate=1.40, status=on market, reviewer shares=none
+- Paper 21: author=Random Agent 1, quality=0.60, AC=18.00, rate=0.60, status=on market, reviewer shares=none
+- Paper 22: author=Random Agent 1, quality=0.60, AC=18.09, rate=0.62, status=reviewed, reviewer shares=Random Agent 2=0.50%
+- Paper 23: author=Random Agent 1, quality=0.60, AC=21.62, rate=0.74, status=reviewed, reviewer shares=Agent 2=0.50%
+- Paper 24: author=Random Agent 1, quality=0.60, AC=21.62, rate=0.74, status=reviewed, reviewer shares=Agent 1=0.50%
+- Paper 25: author=Random Agent 1, quality=0.60, AC=18.00, rate=0.60, status=on market, reviewer shares=none
+- Paper 26: author=Random Agent 1, quality=0.60, AC=20.75, rate=0.74, status=reviewed, reviewer shares=Agent 1=0.50%
+- Paper 27: author=Random Agent 1, quality=0.60, AC=18.30, rate=0.62, status=reviewed, reviewer shares=Random Agent 2=0.50%
+- Paper 28: author=Random Agent 1, quality=0.60, AC=18.00, rate=0.60, status=on market, reviewer shares=none
+- Paper 29: author=Random Agent 1, quality=0.60, AC=18.00, rate=0.60, status=on market, reviewer shares=none
+- Paper 30: author=Random Agent 1, quality=0.60, AC=18.00, rate=0.60, status=on market, reviewer shares=none
+- Paper 31: author=Random Agent 2, quality=1.40, AC=43.00, rate=1.52, status=reviewed, reviewer shares=Random Agent 1=0.50%
+- Paper 32: author=Random Agent 2, quality=1.40, AC=42.00, rate=1.40, status=in review, reviewer shares=none
+- Paper 33: author=Random Agent 2, quality=1.40, AC=59.08, rate=2.40, status=reviewed, reviewer shares=Agent 2=0.50%
+- Paper 34: author=Random Agent 2, quality=1.40, AC=42.00, rate=1.40, status=on market, reviewer shares=none
+- Paper 35: author=Random Agent 2, quality=1.40, AC=51.04, rate=2.40, status=reviewed, reviewer shares=Agent 2=0.50%
+- Paper 36: author=Random Agent 2, quality=1.40, AC=45.01, rate=2.40, status=reviewed, reviewer shares=Agent 1=0.50%
+- Paper 37: author=Random Agent 2, quality=1.40, AC=42.00, rate=1.40, status=on market, reviewer shares=none
+- Paper 38: author=Random Agent 2, quality=1.40, AC=42.00, rate=1.40, status=on market, reviewer shares=none
+- Paper 39: author=Random Agent 2, quality=1.40, AC=53.05, rate=2.40, status=reviewed, reviewer shares=Agent 1=0.50%
+- Paper 40: author=Random Agent 2, quality=1.40, AC=45.09, rate=1.68, status=reviewed, reviewer shares=Random Agent 1=0.50%
+
+Recent agent actions
+
+Agent 1
+- timestep 21: review_started of Paper 36
+- timestep 22: review_continued of Paper 36
+- timestep 23: review_continued of Paper 36
+- timestep 24: review_continued of Paper 36
+- timestep 25: review_continued of Paper 36
+- timestep 26: review_continued of Paper 36
+- timestep 27: review_continued of Paper 36
+- timestep 28: review_finished_write of Paper 36
+- timestep 29: review_started of Paper 12
+- timestep 30: review_continued of Paper 12
+
+Agent 2
+- timestep 21: review_continued of Paper 35
+- timestep 22: review_finished_write of Paper 35
+- timestep 23: review_started of Paper 5
+- timestep 24: review_continued of Paper 5
+- timestep 25: review_continued of Paper 5
+- timestep 26: review_continued of Paper 5
+- timestep 27: review_continued of Paper 5
+- timestep 28: review_finished_write of Paper 5
+- timestep 29: review_started of Paper 7
+- timestep 30: review_continued of Paper 7
+
+Random Agent 1
+- timestep 21: write_paper
+- timestep 22: review_started of Paper 31
+- timestep 23: review_finished_write of Paper 31
+- timestep 24: review_started of Paper 2
+- timestep 25: review_continued of Paper 2
+- timestep 26: review_finished_write of Paper 2
+- timestep 27: review_started of Paper 32
+- timestep 28: review_continued of Paper 32
+- timestep 29: review_continued of Paper 32
+- timestep 30: review_continued of Paper 32
+
+Random Agent 2
+- timestep 21: review_continued of Paper 14
+- timestep 22: review_continued of Paper 14
+- timestep 23: review_continued of Paper 14
+- timestep 24: review_continued of Paper 14
+- timestep 25: review_finished_write of Paper 14
+- timestep 26: review_started of Paper 22
+- timestep 27: review_finished_write of Paper 22
+- timestep 28: write_paper
+- timestep 29: write_paper
+- timestep 30: review_started of Paper 4
+
+Choice breakdown (share of decisions)
+- write_paper: 6.7% (8)
+- start_review: 21.7% (26)
+- continue_review: 53.3% (64)
+- finish_and_write: 18.3% (22)
+
+Wrote time-series to experiments/ac_market_cli_smoke\history.csv and experiments/ac_market_cli_smoke\history.json
+
+Wrote charts to the runs/ folder:
+- experiments/ac_market_cli_smoke\summary.png  (Overview dashboard (review effort, effort histogram, market, quality, reputation))
+- experiments/ac_market_cli_smoke\agent_capital.png  (Academic capital per agent over time)
+- experiments/ac_market_cli_smoke\agent_capital_by_group.png  (Academic capital over time, colored by agent type)
+- experiments/ac_market_cli_smoke\talent_vs_ac.png  (Portfolio AC accrual rate over time (legend: agent number and talent))
+- experiments/ac_market_cli_smoke\mean_review_effort_vs_ac.png  (Running mean peer review effort vs total academic capital (labeled by agent number))
+- experiments/ac_market_cli_smoke\mean_review_effort.png  (Running mean effort of completed peer reviews over time)
+- experiments/ac_market_cli_smoke\agent_group_comparison.png  (Mean capital and review outcomes by agent type)
+- experiments/ac_market_cli_smoke\review_benefit.png  (Reviewer vs author benefit (good vs bad faith); author_net<0 = exploited)
+- experiments/ac_market_cli_smoke\review_surplus_aggregate.png  (System-wide review surplus and split between authors and reviewers)
+- experiments/ac_market_cli_smoke\review_surplus_by_period.png  (Mean per-review author/reviewer surplus by time bin (not cumulative; shows if bad-faith trades turn profitable as prices fall))
+- experiments/ac_market_cli_smoke\ac_source.png  (Academic capital generated by writing vs peer review, overall and by agent type)
+- experiments/ac_market_cli_smoke\system_aggregates.png  (Total/mean/max capital with the inequality (Gini) index)
+- experiments/ac_market_cli_smoke\review_behavior.png  (Cumulative good- vs bad-faith reviews and paper count over time)
+- experiments/ac_market_cli_smoke\accepted_review_price_binned.png  (Mean agreed review share per 10-timestep bin (one dot per bin))
+- experiments/ac_market_cli_smoke\review_faith_by_share_price.png  (Good vs bad faith review percentage and counts by agreed share price)
+- experiments/ac_market_cli_smoke\market_pricing_dynamics.png  (Review share pricing over timesteps: fair-market baseline, scarcity, pressure, and claim prices)
+- experiments/ac_market_cli_smoke\marketplace_activity.png  (Papers on market, listings/claims, and cumulative reviews completed)
+- experiments/ac_market_cli_smoke\paper_quality_vs_ac.png  (Paper quality vs accrued capital (reviewed or not))
+- experiments/ac_market_cli_smoke\paper_quality_vs_review_faith.png  (Paper quality vs good/bad-faith review effort and counts)
+- experiments/ac_market_cli_smoke\writing_effort_vs_rate.png  (Writing effort invested vs base accrual rate (asymptote))
+- experiments/ac_market_cli_smoke\paper_writing_effort_over_time.png  (Paper-writing effort at publication over time)
+- experiments/ac_market_cli_smoke\review_reputation.png  (Reviewer reputation (share-weighted accrual rate per review) over time)
+- experiments/ac_market_cli_smoke\reputation_vs_ac.png  (Final academic capital vs peer-review reputation (by agent type))
+- experiments/ac_market_cli_smoke\reputation_vs_review_ac.png  (Peer-review AC held vs reputation (by agent type))
+- experiments/ac_market_cli_smoke\talent_vs_final_ac.png  (Final academic capital vs intrinsic talent (by agent type))
+- experiments/ac_market_cli_smoke\talent_vs_review_ac.png  (Peer-review AC held vs intrinsic talent (by agent type))
+- experiments/ac_market_cli_smoke\action_mix.png  (What every agent did each timestep (stacked bars))
+- experiments/ac_market_cli_smoke\choice_breakdown.png  (Agent decisions (write / review / finish))
+- experiments/ac_market_cli_smoke\review_effort_histogram.png  (Completed peer reviews by effort level)
+- experiments/ac_market_cli_smoke\review_effort_scatter.png  (Each completed review: timestep vs effort invested)
+- experiments/ac_market_cli_smoke\review_reward_curve.png  (Review accrual bump E = F(T) for the active curve (sigmoid/log/jump) and threshold)
+- experiments/ac_market_cli_smoke\writing_effort_distribution.png  (Total paper-writing effort by agent)
+- experiments/ac_market_cli_smoke\paper_writing_effort_distribution.png  (Writing effort per paper (frequency))
+- experiments/ac_market_cli_smoke\paper_ac.png  (Accrued capital per paper over time)
+- experiments/ac_market_cli_smoke\marketplace_0_100.png  (Marketplace supply zoom: timesteps 0�C100)
+- experiments/ac_market_cli_smoke\marketplace_200_300.png  (Marketplace supply zoom: timesteps 200�C300)
+- experiments/ac_market_cli_smoke\marketplace_600_700.png  (Marketplace supply zoom: timesteps 600�C700)
+- experiments/ac_market_cli_smoke\marketplace_1800_1900.png  (Marketplace supply zoom: timesteps 1800�C1900)
+
+View the summary chart at: C:\Users\26840\.codex\worktrees\ac-review-market\Agent-Simulation-Environment\experiments\ac_market_cli_smoke\summary.png
+
+Not archived to the gallery (--no-archive).

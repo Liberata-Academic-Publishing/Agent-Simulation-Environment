@@ -67,6 +67,9 @@ class Environment:
         adaptive_slow_raise_bins: tuple[str, ...] = SIM.adaptive_slow_raise_bins,
         fast_claim_max_wait: float | None = SIM.fast_claim_max_wait,
         history: "History | None" = None,
+        market_mechanism: str = SIM.market_mechanism,
+        market_config=None,
+        market_seed: int = SIM.seed,
     ):
         if agents is not None and num_agents is not None:
             raise ValueError("Pass either agents or num_agents, not both.")
@@ -121,6 +124,19 @@ class Environment:
         Agent.all_papers = self.papers
         Agent.all_agents = self.agents
         self._configure_agents()
+        if market_mechanism not in {"legacy", "sampled_bidding"}:
+            raise ValueError("unknown market mechanism")
+        self.market_mechanism = market_mechanism
+        self.review_market = None
+        if market_mechanism == "sampled_bidding":
+            from ReviewMarketplace import ReviewMarketplace
+            hooks = ("offer_review_this_step", "accept_review_offer", "choose_market_work_action")
+            if any(getattr(type(a), hook) is getattr(Agent, hook)
+                   for a in self.agents for hook in hooks):
+                raise ValueError("sampled_bidding v1 supports fixed heuristic/random strategies; RL needs retraining and an adapter")
+            self.review_market = ReviewMarketplace(market_config or SIM, self.agents, market_seed)
+        for agent in self.agents:
+            agent.sampled_market_enabled = self.review_market is not None
 
     # ---- main loop -------------------------------------------------------
     def run_timestep(self):
@@ -128,12 +144,19 @@ class Environment:
         self.timestep += 1
         self._sync_papers()
         self._list_scheduled_papers()
-        self._update_market_prices()
-        self._clear_review_market()
+        if self.review_market is None:
+            self._update_market_prices()
+            self._clear_review_market()
+            market_claimers = set()
+        else:
+            market_claimers = self.review_market.clear(self)
+            self.market_assignments = len(market_claimers)
 
         order = list(self.agents)
         random.shuffle(order)
-        if self.review_paradigm == REVIEW_PARADIGM_DISCRETE:
+        if self.review_market is not None:
+            self._sampled_work_phase(order, market_claimers)
+        elif self.review_paradigm == REVIEW_PARADIGM_DISCRETE:
             claimers = self._marketplace_phase(order)
             self._work_phase(order, claimers)
         else:
@@ -159,6 +182,20 @@ class Environment:
         return self
 
     # ---- phases ----------------------------------------------------------
+    def _sampled_work_phase(self, order, claimers):
+        for agent in order:
+            agent.current_timestep = self.timestep
+            if agent in claimers:
+                records = [agent.apply_initial_review_effort()]
+            elif self.review_paradigm == REVIEW_PARADIGM_DISCRETE:
+                records = [agent.work_turn()]
+            else:
+                records = agent.act_continuous()
+            if self.history is not None:
+                for record in records:
+                    if record is not None:
+                        self.history.record_action(self, agent, record)
+
     def _continuous_phase(self, order: list[Agent]) -> None:
         """Single merged phase: each agent makes one decision and spends one
         timestep of effort on it (claim+review, continue review, research, or
@@ -239,8 +276,9 @@ class Environment:
 
     # ---- marketplace bookkeeping ----------------------------------------
     def market(self):
-        """Backwards-compatible alias for the price-table refresh."""
-        self._update_market_prices()
+        """Legacy price refresh; sampled quotes refresh only in run_timestep."""
+        if self.review_market is None:
+            self._update_market_prices()
 
     def _update_market_prices(self) -> None:
         listed = [p for p in self.papers if p.review_available]

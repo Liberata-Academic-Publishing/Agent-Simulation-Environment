@@ -40,6 +40,21 @@ class RandomAgent(Agent):
         self.claim_probability = claim_probability
         self.good_faith_probability = good_faith_probability
 
+    def offer_review_this_step(self):
+        return self.active_review_paper is None and random.random() < self.claim_probability
+
+    def accept_review_offer(self, paper, share):
+        # Participation was sampled once, not once for every author invitation.
+        return self.active_review_paper is None and paper.can_start_review(self)
+
+    def choose_market_work_action(self):
+        if self.active_review_paper is not None:
+            return random.choice([(CONTINUOUS_REVIEW, None), (CONTINUOUS_RESEARCH, None)])
+        options = [(CONTINUOUS_RESEARCH, None)]
+        if not self.continuous_publish_by_threshold():
+            options.append((CONTINUOUS_RESEARCH_FINISH, None))
+        return random.choice(options)
+
     def choose_marketplace_action(self) -> Paper | None:
         reviewable = [
             p

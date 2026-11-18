@@ -385,6 +385,8 @@ class History:
         self.track_agents = track_agents
         self.track_papers = track_papers
 
+        self.market_metadata = {}
+        self.market_trades = []
         self.timesteps: list[int] = []
         self.scalars: dict[str, list[float]] = {name: [] for name in self.metrics}
         self.agent_capital: dict[str, list[float]] = {}
@@ -439,6 +441,22 @@ class History:
     def record_step(self, env: "Environment") -> None:
         """Snapshot per-timestep metric series. Called from ``run_timestep()``."""
         self.timesteps.append(env.timestep)
+        from dataclasses import asdict
+        market = getattr(env, "review_market", None)
+        self.market_metadata = {"mechanism": getattr(env, "market_mechanism", "legacy")}
+        if market is not None:
+            c = market.config
+            self.market_metadata["seed"] = market.seed
+            self.market_metadata.update({name: getattr(c, name) for name in (
+                "market_candidate_limit", "market_ac_bin_edges", "market_min_reviewer_ac",
+                "market_share_tick", "market_default_ask_share", "market_author_max_share")})
+            self.market_metadata["agents"] = {
+                str(i): self._label(a, "Agent") for i, a in enumerate(env.agents)}
+            self.market_metadata["papers"] = {
+                str(i): self._label(p, "Paper") for p, i in market.paper_ids.items()}
+            self.market_trades.extend(asdict(trade) for trade in market.trades)
+            for name, value in market.metrics.items():
+                self.scalars.setdefault("market_" + name, []).append(float(value))
         for name, fn in self.metrics.items():
             self.scalars[name].append(float(fn(env)))
         self.scalars.setdefault("mean_completed_review_effort", []).append(
@@ -642,6 +660,8 @@ class History:
             paper_ac_out = paper_ac_full
 
         return {
+            "market_metadata": dict(self.market_metadata),
+            "market_trades": list(self.market_trades),
             "timesteps": list(self.timesteps),
             "days": list(self.timesteps),
             "scalars": {k: list(v) for k, v in self.scalars.items()},
@@ -960,6 +980,8 @@ class History:
             actions_truncated = True
 
         return {
+            "market_metadata": dict(self.market_metadata),
+            "market_trades": list(self.market_trades),
             "timesteps": list(self.timesteps),
             "days": list(self.timesteps),
             "scalars": {k: list(v) for k, v in self.scalars.items()},
@@ -1022,6 +1044,8 @@ class History:
         empty so partial exports still load.
         """
         history = cls()
+        history.market_metadata = dict(data.get("market_metadata", {}))
+        history.market_trades = list(data.get("market_trades", []))
         timesteps = data.get("timesteps") or data.get("days") or []
         history.timesteps = [int(t) for t in timesteps]
 

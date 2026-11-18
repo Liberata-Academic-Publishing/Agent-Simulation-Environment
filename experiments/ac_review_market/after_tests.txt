@@ -1,0 +1,60 @@
+RL: 2 independent tabular agents, starting from scratch, learning online.
+.........................F....................F......F..E.........F............
+Low-talent RL: 2 independent tabular agents (talent=0.3), starting from scratch, learning online.
+======================================================================
+ERROR: test_subthreshold_review_consumes_opportunity_without_reward (test_simulation.MarketplaceLifecycleTest.test_subthreshold_review_consumes_opportunity_without_reward)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\26840\.codex\worktrees\ac-review-market\Agent-Simulation-Environment\test_simulation.py", line 171, in test_subthreshold_review_consumes_opportunity_without_reward
+    share = paper.finish_review(reviewer, MIN_REVIEW_EFFORT_THRESHOLD - 0.5)
+  File "C:\Users\26840\.codex\worktrees\ac-review-market\Agent-Simulation-Environment\Paper.py", line 634, in finish_review
+    review_effort = self._nonnegative_float(effort, "review_effort")
+  File "C:\Users\26840\.codex\worktrees\ac-review-market\Agent-Simulation-Environment\Paper.py", line 779, in _nonnegative_float
+    raise ValueError(f"{name} must be a finite nonnegative number")
+ValueError: review_effort must be a finite nonnegative number
+
+======================================================================
+FAIL: test_review_bump_rises_and_saturates_with_sigmoid (test_simulation.EconomicsTest.test_review_bump_rises_and_saturates_with_sigmoid)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\26840\.codex\worktrees\ac-review-market\Agent-Simulation-Environment\test_simulation.py", line 196, in test_review_bump_rises_and_saturates_with_sigmoid
+    self.assertGreater(b1, 0.0)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^
+AssertionError: 0.0 not greater than 0.0
+
+======================================================================
+FAIL: test_environment_scarcity_multiplier_when_crowded (test_simulation.MarketEconomicsTest.test_environment_scarcity_multiplier_when_crowded)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\26840\.codex\worktrees\ac-review-market\Agent-Simulation-Environment\test_simulation.py", line 422, in test_environment_scarcity_multiplier_when_crowded
+    self.assertLess(env.scarcity_multiplier, 1.0)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1.0 not less than 1.0
+
+======================================================================
+FAIL: test_min_effort_review_earns_reward (test_simulation.MarketplaceLifecycleTest.test_min_effort_review_earns_reward)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\26840\.codex\worktrees\ac-review-market\Agent-Simulation-Environment\test_simulation.py", line 160, in test_min_effort_review_earns_reward
+    self.assertGreater(paper.accrual_rate, 1.0)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1.0 not greater than 1.0
+
+======================================================================
+FAIL: test_continuous_mode_classifies_finished_reviews_by_threshold (test_simulation.ReviewParadigmTest.test_continuous_mode_classifies_finished_reviews_by_threshold)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\26840\.codex\worktrees\ac-review-market\Agent-Simulation-Environment\test_simulation.py", line 701, in test_continuous_mode_classifies_finished_reviews_by_threshold
+    self.assertEqual(record.review_kind, GOOD_FAITH_REVIEW)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'bad_faith' != 'good_faith'
+- bad_faith
+? ^^
++ good_faith
+? ^^^
+
+
+----------------------------------------------------------------------
+Ran 79 tests in 8.340s
+
+FAILED (failures=4, errors=1)

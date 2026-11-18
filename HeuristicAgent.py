@@ -57,6 +57,33 @@ class HeuristicAgent(Agent):
         )
         self.forecast_horizon_timesteps = forecast_horizon_timesteps
 
+    def offer_review_this_step(self):
+        return self.active_review_paper is None
+
+    def accept_review_offer(self, paper, share):
+        if self.active_review_paper is not None or not self._can_review(paper):
+            return False
+        # Exact quoted price is exposed temporarily by the market. No legacy
+        # global claim-probability discount applies to a concrete invitation.
+        if self.review_paradigm == REVIEW_PARADIGM_DISCRETE:
+            alternative = self._write_value()
+        else:
+            _, value, length = self._best_research_plan(self.forecast_horizon_timesteps)
+            alternative = value / max(1.0, length)
+        return self._score_claim(paper) > max(0.0, alternative)
+
+    def choose_market_work_action(self):
+        # Same research/continuation comparison, without a global paper scan.
+        kind, value, length = self._best_research_plan(self.forecast_horizon_timesteps)
+        paper = self.active_review_paper
+        if paper is None:
+            return kind, None
+        research = self._review_value(paper, self.active_review_effort,
+                                      self.forecast_horizon_timesteps) + value / max(1.0, length)
+        if self._score_continue_review(paper) >= research:
+            return CONTINUOUS_REVIEW, None
+        return CONTINUOUS_RESEARCH, None
+
     # ---- marketplace phase ----------------------------------------------
     def choose_marketplace_action(self) -> Paper | None:
         assigned = self._assigned_claim_paper()

@@ -791,6 +791,7 @@ def build_simulation(
     use_competition_adjusted_forecast: bool = SIM.use_competition_adjusted_forecast,
     use_scarcity_pricing: bool = SIM.use_scarcity_pricing,
     reviewer_pressure_exponent: float = SIM.reviewer_pressure_exponent,
+    market_mechanism: str = SIM.market_mechanism,
     use_merit_market_clearing: bool = SIM.use_merit_market_clearing,
     target_market_wait_timesteps: float = SIM.target_market_wait_timesteps,
     adaptive_pricing_learning_rate: float = SIM.adaptive_pricing_learning_rate,
@@ -884,6 +885,7 @@ def build_simulation(
     seed_initial_papers(agents)
 
     return Environment(
+        market_seed=seed,
         agents=agents,
         papers=Agent.all_papers,
         forecast_horizon_timesteps=SIM.forecast_horizon_timesteps,
@@ -898,6 +900,7 @@ def build_simulation(
         use_competition_adjusted_forecast=use_competition_adjusted_forecast,
         use_scarcity_pricing=use_scarcity_pricing,
         reviewer_pressure_exponent=reviewer_pressure_exponent,
+        market_mechanism=market_mechanism,
         use_merit_market_clearing=use_merit_market_clearing,
         target_market_wait_timesteps=target_market_wait_timesteps,
         adaptive_pricing_learning_rate=adaptive_pricing_learning_rate,
@@ -1156,6 +1159,8 @@ def parse_args(argv=None):
         "--dqn-freeze", dest="dqn_freeze", action="store_true",
         help="Run DQN agents greedily with no online learning.",
     )
+    parser.add_argument("--market-mechanism", choices=("legacy", "sampled_bidding"),
+                        default=SIM.market_mechanism)
     return parser.parse_args(argv)
 
 
@@ -1184,6 +1189,7 @@ def build_run_config(
     use_competition_adjusted_forecast: bool = SIM.use_competition_adjusted_forecast,
     use_scarcity_pricing: bool = SIM.use_scarcity_pricing,
     reviewer_pressure_exponent: float = SIM.reviewer_pressure_exponent,
+    market_mechanism: str = SIM.market_mechanism,
     use_merit_market_clearing: bool = SIM.use_merit_market_clearing,
     target_market_wait_timesteps: float = SIM.target_market_wait_timesteps,
     adaptive_pricing_learning_rate: float = SIM.adaptive_pricing_learning_rate,
@@ -1226,6 +1232,7 @@ def build_run_config(
     config["use_competition_adjusted_forecast"] = use_competition_adjusted_forecast
     config["use_scarcity_pricing"] = use_scarcity_pricing
     config["reviewer_pressure_exponent"] = reviewer_pressure_exponent
+    config["market_mechanism"] = market_mechanism
     config["use_merit_market_clearing"] = use_merit_market_clearing
     config["target_market_wait_timesteps"] = target_market_wait_timesteps
     config["adaptive_pricing_learning_rate"] = adaptive_pricing_learning_rate
@@ -1287,6 +1294,7 @@ def archive_run(
     use_competition_adjusted_forecast: bool = SIM.use_competition_adjusted_forecast,
     use_scarcity_pricing: bool = SIM.use_scarcity_pricing,
     reviewer_pressure_exponent: float = SIM.reviewer_pressure_exponent,
+    market_mechanism: str = SIM.market_mechanism,
     use_merit_market_clearing: bool = SIM.use_merit_market_clearing,
     target_market_wait_timesteps: float = SIM.target_market_wait_timesteps,
     adaptive_pricing_learning_rate: float = SIM.adaptive_pricing_learning_rate,
@@ -1322,6 +1330,7 @@ def archive_run(
             use_competition_adjusted_forecast=use_competition_adjusted_forecast,
             use_scarcity_pricing=use_scarcity_pricing,
             reviewer_pressure_exponent=reviewer_pressure_exponent,
+            market_mechanism=market_mechanism,
             use_merit_market_clearing=use_merit_market_clearing,
             target_market_wait_timesteps=target_market_wait_timesteps,
             adaptive_pricing_learning_rate=adaptive_pricing_learning_rate,
@@ -1362,6 +1371,7 @@ def prompt_and_archive(
     use_competition_adjusted_forecast: bool = SIM.use_competition_adjusted_forecast,
     use_scarcity_pricing: bool = SIM.use_scarcity_pricing,
     reviewer_pressure_exponent: float = SIM.reviewer_pressure_exponent,
+    market_mechanism: str = SIM.market_mechanism,
     use_merit_market_clearing: bool = SIM.use_merit_market_clearing,
     target_market_wait_timesteps: float = SIM.target_market_wait_timesteps,
     adaptive_pricing_learning_rate: float = SIM.adaptive_pricing_learning_rate,
@@ -1410,6 +1420,7 @@ def prompt_and_archive(
         use_competition_adjusted_forecast=use_competition_adjusted_forecast,
         use_scarcity_pricing=use_scarcity_pricing,
         reviewer_pressure_exponent=reviewer_pressure_exponent,
+        market_mechanism=market_mechanism,
         use_merit_market_clearing=use_merit_market_clearing,
         target_market_wait_timesteps=target_market_wait_timesteps,
         adaptive_pricing_learning_rate=adaptive_pricing_learning_rate,
@@ -1482,6 +1493,7 @@ def _run_once(args, *, seed: int, title: str | None = None) -> dict:
         use_competition_adjusted_forecast=args.use_competition_adjusted_forecast,
         use_scarcity_pricing=args.use_scarcity_pricing,
         reviewer_pressure_exponent=args.reviewer_pressure_exponent,
+        market_mechanism=args.market_mechanism,
         use_merit_market_clearing=args.use_merit_market_clearing,
         target_market_wait_timesteps=args.target_market_wait_timesteps,
         adaptive_pricing_learning_rate=args.adaptive_pricing_learning_rate,
@@ -1532,6 +1544,7 @@ def _run_once(args, *, seed: int, title: str | None = None) -> dict:
             use_competition_adjusted_forecast=args.use_competition_adjusted_forecast,
             use_scarcity_pricing=args.use_scarcity_pricing,
             reviewer_pressure_exponent=args.reviewer_pressure_exponent,
+            market_mechanism=args.market_mechanism,
             use_merit_market_clearing=args.use_merit_market_clearing,
             target_market_wait_timesteps=args.target_market_wait_timesteps,
             adaptive_pricing_learning_rate=args.adaptive_pricing_learning_rate,
@@ -1565,6 +1578,7 @@ def _run_once(args, *, seed: int, title: str | None = None) -> dict:
             use_competition_adjusted_forecast=args.use_competition_adjusted_forecast,
             use_scarcity_pricing=args.use_scarcity_pricing,
             reviewer_pressure_exponent=args.reviewer_pressure_exponent,
+            market_mechanism=args.market_mechanism,
             use_merit_market_clearing=args.use_merit_market_clearing,
             target_market_wait_timesteps=args.target_market_wait_timesteps,
             adaptive_pricing_learning_rate=args.adaptive_pricing_learning_rate,
