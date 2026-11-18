@@ -35,6 +35,11 @@ CLI flags for one-off overrides.
 - **Discrete review effort**: agents choose `bad_faith` or `good_faith` when
   claiming a review. By default `T_B = 1`, `T_G = 5 * T_B`, and discrete
   manuscript work uses `T_M = 200 * T_B`.
+- **Review consideration gate**: each timestep every agent considers claiming a
+  new review with probability `review_consideration_probability` (default 0.527,
+  paid-review acceptance rate from Critical Care Medicine 2025). Enforced in
+  `Paper.can_start_review`; drawn in `Environment._draw_review_consideration`.
+  `1.0` = legacy (no RNG draws). Legacy tests in `test_simulation.py` run at 1.0.
 - **Review reward curve**: by default `review_effort_curve = "sigmoid"` models
   `E = F(T)` with low impact for short reviews, a rise through the good-faith
   region, and saturation for long reviews. Set it to `"log"` to use the older
@@ -54,7 +59,10 @@ CLI flags for one-off overrides.
   `rl_gamma`, reward weights). The RL price feature is log10-scaled over
   `rl_share_feature_min`..`rl_share_feature_max` (`share_feature` in `QLearningAgent.py`) so
   offers of different magnitudes land in different tabular buckets; retrain
-  policies after changing it or the pricing economics. Continuous tabular/linear RL uses `train_rl.py`;
+  policies after changing it or the pricing economics. The RL reputation feature
+  log10-scales `peer_review_epsilon_history` the same way over
+  `rl_reputation_feature_min`..`rl_reputation_feature_max` (`reputation_feature`);
+  policies with a different feature count are rejected on load. Continuous tabular/linear RL uses `train_rl.py`;
   discrete 3-action RL (write / bad claim / good claim) uses
   `train_discrete_rl.py` and `DiscreteQLearningAgent`. Low-talent RL agents
   (`LowTalentQLearningAgent`) load a separate policy trained with

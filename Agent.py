@@ -169,6 +169,10 @@ class Agent(ABC):
         self.use_scarcity_pricing = SIM.use_scarcity_pricing
         self.use_merit_market_clearing = SIM.use_merit_market_clearing
         self.market_claim_assignment: Paper | None = None
+        # Whether this agent is open to claiming a new review this timestep;
+        # Environment redraws it each timestep from
+        # ``review_consideration_probability``.
+        self.considering_review: bool = True
 
         # Quality of the paper currently being written (known before/while
         # working on it). Sampled lazily the first time the agent writes.

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import os
+import random
 import statistics
 import tempfile
 import unittest
@@ -44,6 +45,20 @@ try:
     _HAS_MPL = True
 except ImportError:
     _HAS_MPL = False
+
+
+_ORIGINAL_SIM = config.SIM
+
+
+def setUpModule():
+    # Legacy tests script deterministic claims, so run them with the
+    # per-timestep review-consideration gate disabled (p = 1.0). The gate has
+    # its own tests in ``ReviewConsiderationTest``.
+    config.SIM = replace(config.SIM, review_consideration_probability=1.0)
+
+
+def tearDownModule():
+    config.SIM = _ORIGINAL_SIM
 
 
 class ScriptAgent(Agent):
@@ -1591,6 +1606,92 @@ class UtilityTest(unittest.TestCase):
         paths = visualize.plot_all(history, outdir)
         for path in paths.values():
             self.assertTrue(os.path.exists(path))
+
+
+class ReviewConsiderationTest(unittest.TestCase):
+    """Per-timestep gate: an agent considers reviewing with probability p."""
+
+    def setUp(self):
+        Agent.all_papers = []
+        Paper.reset_citation_market()
+
+    def test_not_considering_blocks_new_claims(self):
+        author = ScriptAgent("author")
+        reviewer = ScriptAgent("reviewer")
+        paper = _listed_paper(author)
+        self.assertTrue(paper.can_start_review(reviewer))
+        reviewer.considering_review = False
+        self.assertFalse(paper.can_start_review(reviewer))
+        self.assertFalse(paper.start_review(reviewer))
+
+    def test_zero_probability_prevents_all_claims(self):
+        author = ScriptAgent("author")
+        reviewers = [HeuristicAgent(intrinsic_talent=1.0) for _ in range(5)]
+        paper = _listed_paper(author)
+        env = Environment(
+            agents=[author, *reviewers],
+            papers=[paper],
+            review_consideration_probability=0.0,
+        )
+        env.run(5)
+        self.assertFalse(paper.review_claimed)
+        self.assertEqual(env.review_consideration_count, 0)
+
+    def test_full_probability_consumes_no_random_draws(self):
+        agents = [ScriptAgent(f"a{i}") for i in range(4)]
+        env = Environment(agents=agents, review_consideration_probability=1.0)
+        random.seed(123)
+        state = random.getstate()
+        env._draw_review_consideration()
+        self.assertEqual(random.getstate(), state)
+        self.assertTrue(all(a.considering_review for a in agents))
+        self.assertEqual(env.review_consideration_count, 4)
+
+    def test_consideration_rate_matches_probability(self):
+        random.seed(7)
+        agents = [ScriptAgent(f"a{i}") for i in range(200)]
+        env = Environment(agents=agents, review_consideration_probability=0.527)
+        total = 0
+        draws = 50
+        for _ in range(draws):
+            env._draw_review_consideration()
+            total += env.review_consideration_count
+        self.assertAlmostEqual(total / (draws * len(agents)), 0.527, delta=0.02)
+
+    def test_history_records_consideration_rate(self):
+        random.seed(3)
+        agents = [ScriptAgent(f"a{i}") for i in range(50)]
+        history = History()
+        env = Environment(
+            agents=agents, history=history, review_consideration_probability=0.5
+        )
+        env.run(20)
+        rates = history.scalars["review_consideration_rate"]
+        self.assertEqual(len(rates), 20)
+        self.assertAlmostEqual(sum(rates) / len(rates), 0.5, delta=0.08)
+        self.assertIn("claim_rate_among_considering", history.scalars)
+
+    def test_active_review_continues_when_not_considering(self):
+        author = ScriptAgent("author")
+        reviewer = ScriptAgent("reviewer")
+        paper = _listed_paper(author)
+        reviewer.claim_review(paper)
+        reviewer.considering_review = False
+        record = reviewer._advance_active_review("review_continued")
+        self.assertEqual(record.kind, "review_continued")
+        self.assertIs(reviewer.active_review_paper, paper)
+        self.assertGreater(reviewer.active_review_effort, 0.0)
+
+    def test_default_comes_from_config(self):
+        env = Environment(agents=[])
+        self.assertEqual(
+            env.review_consideration_probability,
+            config.SIM.review_consideration_probability,
+        )
+
+    def test_rejects_out_of_range_probability(self):
+        with self.assertRaises(ValueError):
+            Environment(agents=[], review_consideration_probability=1.5)
 
 
 if __name__ == "__main__":

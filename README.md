@@ -33,6 +33,16 @@ In discrete mode, each timestep has two phases:
 In either mode, an agent that starts a review cannot also write during the same
 timestep.
 
+**Review consideration (empirical grounding).** At the start of every timestep,
+each agent independently considers taking on a new review with probability
+`review_consideration_probability` (default **0.527**, the share of invited
+reviewers who accepted when offered a $250 payment in the 2025 *Critical Care
+Medicine* paid-review study). Agents not considering that timestep cannot claim a
+paper, but they can still write or continue a review they already hold. Set it to
+`1.0` (or pass `--review-consideration-prob 1.0`) to restore the legacy behavior.
+Per-timestep metrics `review_consideration_rate` and
+`claim_rate_among_considering` are recorded in `history.json`.
+
 ## Review effort model
 
 The simulation supports two run-level review paradigms. A single simulation is either

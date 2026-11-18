@@ -801,6 +801,8 @@ class Paper:
             return False
         if self.reviewed or self.review_claimed:
             return False
+        if not getattr(agent, "considering_review", True):
+            return False
         return self.market_listed
 
     def list_on_market(self, timestep: int | None = None) -> None:

@@ -141,6 +141,22 @@ def _instant_claim_rate(env: "Environment") -> float:
     return instant / len(claimed)
 
 
+def _review_consideration_rate(env: "Environment") -> float:
+    """Fraction of agents open to claiming a new review this timestep."""
+    if not env.agents:
+        return 0.0
+    count = getattr(env, "review_consideration_count", len(env.agents))
+    return float(count) / len(env.agents)
+
+
+def _claim_rate_among_considering(env: "Environment") -> float:
+    """Reviews started this timestep / considering agents free to claim."""
+    free = getattr(env, "review_consideration_free_count", 0)
+    if free <= 0:
+        return 0.0
+    return _papers_claimed_this_timestep(env) / float(free)
+
+
 def _mean_author_price_multiplier(env: "Environment") -> float:
     values = [
         float(getattr(agent, "review_offer_multiplier", 1.0))
@@ -345,6 +361,10 @@ def default_metrics() -> dict[str, MetricFn]:
         "papers_claimed_same_timestep": _papers_claimed_same_timestep,
         "mean_time_on_market_claimed": _mean_time_on_market_claimed,
         "instant_claim_rate": _instant_claim_rate,
+        # Per-timestep review-consideration gate (see
+        # ``SimConfig.review_consideration_probability``).
+        "review_consideration_rate": _review_consideration_rate,
+        "claim_rate_among_considering": _claim_rate_among_considering,
         # ``papers_on_market`` is the open queue only.  These two distinguish
         # claimed work in progress from the total review-work pipeline.
         "papers_in_review": _papers_in_review,

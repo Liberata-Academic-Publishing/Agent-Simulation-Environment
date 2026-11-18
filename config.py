@@ -134,6 +134,12 @@ class SimConfig:
 
     # --- Effort & reward model -------------------------------------------
     review_paradigm: str = "continuous"       # "continuous" | "discrete"
+    # Probability an agent considers claiming a new review on a given timestep.
+    # 0.527 = reviewer acceptance rate with a $250 payment offer (Critical
+    # Care Medicine, 2025). Agents not considering this timestep can only write
+    # or continue a review they already hold. 1.0 restores the legacy
+    # always-available behavior (and consumes no random draws).
+    review_consideration_probability: float = 0.527
     review_effort_per_timestep: float = 1.0     # effort added per review timestep
     writing_effort_per_timestep: float = 1.0    # continuous writing effort per timestep
     min_review_effort_threshold: float = 1.0    # minimum valid review/share effort
@@ -145,9 +151,13 @@ class SimConfig:
     review_effort_curve: str = "sigmoid"        # "sigmoid" | "log" | "jump"
     min_review_accrual_bump: float = 0.0       # sigmoid bump at one timestep
     max_review_accrual_bump: float = 0.60       # sigmoid saturation near a long review
-    review_sigmoid_midpoint: float = 3.0        # review length where impact accelerates
-    review_sigmoid_steepness: float = 0.5        # slope: lower = gentler (0.35–0.6 stretched)
-    review_sigmoid_saturation_effort: float = 25.0  # effort where bump ~saturates
+    # Sigmoid calibrated to Black et al. (1998, JAMA): review quality rises
+    # with time spent up to ~3 hours, with no gain beyond; Publons (2018)
+    # median ~5 h. Flat near bad faith (1), steep through good faith (3: ~72%
+    # of max), ~96% at 4, saturated at 5.
+    review_sigmoid_midpoint: float = 2.5        # review length where impact accelerates
+    review_sigmoid_steepness: float = 2.0        # slope: higher = sharper S
+    review_sigmoid_saturation_effort: float = 5.0  # effort where bump saturates
     review_jump_threshold: float = 15.0          #f optional jump-mode high-effort cutoff
     review_jump_bump: float = 0.50               # optional extra bump after the cutoff
     review_jump_width: float = 0.75              # softness of the jump-mode transition
@@ -268,6 +278,11 @@ class SimConfig:
             raise ValueError("experience_alpha must be finite and nonnegative")
         if not math.isfinite(self.experience_h) or self.experience_h <= 0:
             raise ValueError("experience_h must be finite and positive")
+        if (
+            not math.isfinite(self.review_consideration_probability)
+            or not 0.0 <= self.review_consideration_probability <= 1.0
+        ):
+            raise ValueError("review_consideration_probability must be in [0, 1]")
 
 
 @dataclass(frozen=True)

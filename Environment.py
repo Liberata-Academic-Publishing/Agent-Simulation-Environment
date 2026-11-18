@@ -75,6 +75,7 @@ class Environment:
         citation_age_decay_ratio: float = SIM.citation_age_decay_ratio,
         citation_ac_per_new_paper: float = SIM.citation_ac_per_new_paper,
         citation_income_smoothing: float = SIM.citation_income_smoothing,
+        review_consideration_probability: float | None = None,
         history: "History | None" = None,
     ):
         if agents is not None and num_agents is not None:
@@ -120,6 +121,20 @@ class Environment:
         self.citation_age_decay_ratio = float(citation_age_decay_ratio)
         self.citation_ac_per_new_paper = float(citation_ac_per_new_paper)
         self.citation_income_smoothing = float(citation_income_smoothing)
+        if review_consideration_probability is None:
+            # Read at construction time (not import time) so CLI ``replace()``
+            # patches of ``config.SIM`` take effect.
+            import config as config_module
+
+            review_consideration_probability = (
+                config_module.SIM.review_consideration_probability
+            )
+        probability = float(review_consideration_probability)
+        if not math.isfinite(probability) or not 0.0 <= probability <= 1.0:
+            raise ValueError("review_consideration_probability must be in [0, 1]")
+        self.review_consideration_probability = probability
+        self.review_consideration_count = 0
+        self.review_consideration_free_count = 0
         self.history = history
         self.timestep = 0
         self.fair_market_price = fair_market_price_from_epsilons(
@@ -158,6 +173,7 @@ class Environment:
         self._sync_papers()
         self._update_citation_forecasts()
         self._list_scheduled_papers()
+        self._draw_review_consideration()
         self._update_market_prices()
         self._clear_review_market()
 
@@ -269,6 +285,33 @@ class Environment:
                 self.history.record_action(self, agent, record)
 
     # ---- marketplace bookkeeping ----------------------------------------
+    def _draw_review_consideration(self) -> None:
+        """Decide which agents are open to claiming a new review this timestep.
+
+        Each agent considers reviewing with probability
+        ``review_consideration_probability`` (default 0.527, the acceptance
+        rate under a paid-review offer). Agents not considering cannot start a
+        review (``Paper.can_start_review``) but may continue one they hold.
+        """
+        p = self.review_consideration_probability
+        if p >= 1.0:
+            for agent in self.agents:
+                agent.considering_review = True
+            self.review_consideration_count = len(self.agents)
+        else:
+            count = 0
+            for agent in self.agents:
+                considering = random.random() < p
+                agent.considering_review = considering
+                count += int(considering)
+            self.review_consideration_count = count
+        # Considering agents free to claim (not already holding a review).
+        self.review_consideration_free_count = sum(
+            1
+            for agent in self.agents
+            if agent.considering_review and agent.active_review_paper is None
+        )
+
     def market(self):
         """Backwards-compatible alias for the price-table refresh."""
         self._update_market_prices()
@@ -276,7 +319,10 @@ class Environment:
     def _update_market_prices(self) -> None:
         listed = [p for p in self.papers if p.review_available]
         eligible = sum(
-            1 for agent in self.agents if agent.active_review_paper is None
+            1
+            for agent in self.agents
+            if agent.active_review_paper is None
+            and getattr(agent, "considering_review", True)
         )
         eligible = max(1, eligible)
         if not listed:

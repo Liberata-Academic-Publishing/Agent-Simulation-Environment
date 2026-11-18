@@ -237,7 +237,10 @@ class HeuristicAgent(Agent):
 
     def _eligible_reviewer_count(self) -> int:
         count = sum(
-            1 for agent in Agent.all_agents if agent.active_review_paper is None
+            1
+            for agent in Agent.all_agents
+            if agent.active_review_paper is None
+            and getattr(agent, "considering_review", True)
         )
         return max(1, count)
 

@@ -63,6 +63,7 @@ def _apply_review_bump_config(args) -> None:
         review_bump_decay_rate=args.review_bump_decay_rate,
         review_bump_decay_cap_timesteps=args.review_bump_decay_cap_timesteps,
         reviewer_surplus_share=args.reviewer_surplus_share,
+        review_consideration_probability=args.review_consideration_probability,
     )
     paper_module.SIM = config_module.SIM
 
@@ -1131,6 +1132,12 @@ def parse_args(argv=None):
         "--reviewer-surplus-share", dest="reviewer_surplus_share",
         type=float, default=SIM.reviewer_surplus_share, metavar="X",
         help="Reviewer's fraction of incremental review surplus in fair-market offers.",
+    )
+    parser.add_argument(
+        "--review-consideration-prob", dest="review_consideration_probability",
+        type=float, default=SIM.review_consideration_probability, metavar="P",
+        help="Per-timestep probability an agent considers claiming a new review "
+             "(default 0.527, paid-review acceptance rate; 1.0 = always).",
     )
     parser.add_argument(
         "--gallery-action-limit", dest="gallery_action_limit",

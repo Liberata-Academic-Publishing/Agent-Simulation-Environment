@@ -412,6 +412,15 @@ def parse_args(argv=None):
         metavar="X",
         help="Intrinsic talent when --low-talent is set.",
     )
+    p.add_argument(
+        "--review-consideration-prob",
+        dest="review_consideration_probability",
+        type=float,
+        default=SIM.review_consideration_probability,
+        metavar="P",
+        help="Per-timestep probability an agent considers claiming a new review "
+             "(default from config; 1.0 = always).",
+    )
     p.add_argument('--shared-talents', action='store_true',
                    help='Four quality/rate cohorts with experience, no seed papers, fixed writing effort.')
     args = p.parse_args(argv)
@@ -419,6 +428,16 @@ def parse_args(argv=None):
         p.error('--shared-talents requires continuous mode without --low-talent')
     if args.alpha is None:
         args.alpha = 0.1 if args.backend == "tabular" else 0.01
+    if args.review_consideration_probability != SIM.review_consideration_probability:
+        # Environment reads config.SIM at construction, so patch it here.
+        import dataclasses
+
+        import config as config_module
+
+        config_module.SIM = dataclasses.replace(
+            config_module.SIM,
+            review_consideration_probability=args.review_consideration_probability,
+        )
     return args
 
 

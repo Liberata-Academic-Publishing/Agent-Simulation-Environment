@@ -45,7 +45,7 @@
     }
     button:hover:not(:disabled) { background: #243140; }
     button:disabled { opacity: .5; cursor: default; }
-    .tiles { display: flex; gap: 10px; flex-wrap: wrap; margin-left: auto; }
+    .tiles { display: flex; gap: 10px; flex-wrap: wrap; }
     .tile {
       background: #161d24; border: 1px solid #232b33; border-radius: 8px;
       padding: 6px 12px; min-width: 92px;
@@ -92,6 +92,9 @@
     .kind-idle, .kind-review_unavailable { color: #6b7280; }
     canvas { max-height: 300px; }
     #panel-reward-curve canvas { max-height: 180px; }
+    /* Fixed-height box so Chart.js (maintainAspectRatio: false) fills it. */
+    .agent-chart-box { position: relative; height: 520px; }
+    .agent-chart-box canvas { max-height: none; }
     .chart-caption { font-size: 11px; color: #8b98a5; margin: -4px 0 8px; line-height: 1.35; }
     /* Static charts are served as pre-rendered (dark, transparent) PNGs and
        shown in place of their canvas; hidden until a run sets the source. */
@@ -140,7 +143,7 @@
         <h2>Episode return (mean final AC)</h2>
         <img class="chart-img" id="img-episode_return" alt="Episode return">
       </div>
-      <div class="panel"><h2>Academic capital per agent</h2><canvas id="agentChart"></canvas></div>
+      <div class="panel"><h2>Academic capital per agent</h2><div class="agent-chart-box"><canvas id="agentChart"></canvas></div></div>
       <div class="panel" id="panel-capital-by-group"><h2>Academic capital by agent type</h2><img class="chart-img" id="img-agent_capital_by_group" alt="Academic capital by agent type"></div>
       <div class="panel" id="panel-talent-vs-ac"><h2>Portfolio accrual rate vs talent</h2><img class="chart-img" id="img-talent_vs_ac" alt="Portfolio accrual rate vs talent"></div>
       <div class="panel" id="panel-effort-vs-ac"><h2>Mean review effort vs academic capital</h2><img class="chart-img" id="img-mean_review_effort_vs_ac" alt="Mean review effort vs academic capital"></div>
@@ -232,10 +235,12 @@
   </main>
 
   <script>
+    // Muted (low-chroma) versions of the original hues: same order, softer on
+    // the dark background when many agent lines overlap.
     const PALETTE = [
-      "#60a5fa","#4ade80","#f87171","#fbbf24","#a78bfa","#34d399","#f472b6",
-      "#22d3ee","#fb923c","#c084fc","#818cf8","#2dd4bf","#facc15","#fca5a5",
-      "#93c5fd","#86efac","#fdba74","#d8b4fe","#5eead4","#fde047"
+      "#7fa1cd","#8ebf9a","#c98c89","#c7ae7a","#a096c9","#84c1a4","#c38ba5",
+      "#76becd","#c39371","#bca5d8","#929bcd","#79c1b4","#af9d67","#dd9e9e",
+      "#7ca2cc","#8bc09c","#bf956c","#bda5d7","#66aea1","#bdb27a"
     ];
     const color = (i) => PALETTE[i % PALETTE.length];
     const agentColor = (name, i) => color(i % PALETTE.length);
