@@ -18,6 +18,7 @@
       document.head.appendChild(base);
     })();
   </script>
+  <link rel="icon" href="assets/liberata-logo.png" type="image/png" />
   <script src="chart.umd.js"></script>
   <style>
     :root { color-scheme: dark; }
@@ -28,8 +29,10 @@
     }
     header {
       padding: 14px 22px; border-bottom: 1px solid #232b33;
-      display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+      display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
     }
+    .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .brand img { width: 32px; height: 32px; display: block; border-radius: 6px; }
     header h1 { font-size: 18px; margin: 0; font-weight: 600; }
     #status { font-size: 13px; color: #8b98a5; }
     #status.done { color: #4ade80; }
@@ -114,7 +117,10 @@
 </head>
 <body>
   <header>
-    <h1>Liberata Simulation</h1>
+    <div class="brand">
+      <img src="assets/liberata-logo.png" alt="Liberata" width="32" height="32" />
+      <h1>Liberata Simulation</h1>
+    </div>
     <select id="runPicker" title="Select a saved run"></select>
     <button id="replayBtn" disabled>▶ Replay</button>
     <button id="pauseBtn" disabled>⏸ Pause</button>

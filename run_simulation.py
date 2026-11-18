@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import os
 import random
 import sys
 from collections import Counter
 from dataclasses import asdict, replace
 
-from Agent import Agent
+from Agent import Agent, assign_rate_talents
 from config import (
     SIM,
     TRAIN,
@@ -18,6 +19,7 @@ from config import (
     default_low_talent_discrete_policy_path,
     default_low_talent_policy_path,
     default_policy_path,
+    list_independent_policy_files,
 )
 import config as config_module
 from Environment import Environment
@@ -106,7 +108,12 @@ DECISION_LABELS = {
 
 
 def seed_initial_papers(agents: list[Agent]):
-    """Seed starting papers per SimConfig (listed on the market from timestep 1)."""
+    """Seed a small, staggered bootstrap supply of reviewable papers.
+
+    Releasing all seed papers at timestep 1 creates an artificial review rush.
+    The steady-state supply must come from agent writing; bootstrap papers merely
+    prevent an empty market while the first manuscripts are being completed.
+    """
     index = 0
     for agent in agents:
         for _ in range(SIM.init_papers_per_agent):
@@ -115,8 +122,10 @@ def seed_initial_papers(agents: list[Agent]):
                 author=agent,
                 quality=agent.intrinsic_talent,
                 current_ac=random.uniform(SIM.init_ac_min, SIM.init_ac_max),
-                market_listed=True,
+                market_listed=False,
             )
+            stagger = max(1, int(SIM.initial_listing_stagger_timesteps))
+            paper.scheduled_listing_timestep = 1 + ((index - 1) % stagger)
             paper.title = f"Paper {index}"
             paper.list_on_market(0)
             Agent.all_papers.append(paper)
@@ -371,6 +380,7 @@ CHART_DESCRIPTIONS = {
     "marketplace_600_700": "Marketplace supply zoom: timesteps 600–700",
     "marketplace_1800_1900": "Marketplace supply zoom: timesteps 1800–1900",
     "paper_quality_vs_ac": "Paper quality vs accrued capital (reviewed or not)",
+    "paper_quality_vs_citations": "Paper quality vs citations received (reviewed or not)",
     "paper_quality_vs_review_faith": "Paper quality vs good/bad-faith review effort and counts",
     "writing_effort_vs_rate": "Writing effort invested vs base accrual rate (asymptote)",
     "paper_writing_effort_over_time": "Paper-writing effort at publication over time",
@@ -389,6 +399,11 @@ CHART_DESCRIPTIONS = {
     "paper_ac": "Accrued capital per paper over time",
     "episode_return": "Episode return from RL training (if training_log.json exists)",
     "avg_peer_review_time": "Average peer review time per training episode",
+    "agent_policy": "Greedy RL policy and the action it picks at each share, effort, and progress",
+    "agent_policy_low_talent": "Low-talent RL policy and the action it picks at each share, effort, and progress",
+    "agent_policy_dqn": "DQN policy and the action it picks at each share, effort, and progress",
+    "agent_policy_discrete": "Discrete RL policy and the action it picks at each share and progress",
+    "agent_policy_discrete_low_talent": "Low-talent discrete RL policy and the action it picks at each share and progress",
 }
 
 
@@ -402,11 +417,18 @@ def open_chart(path: str) -> None:
         os.system(f'xdg-open "{path}"')
 
 
-def save_outputs(history: History, *, show: bool = False, open_charts: bool = False):
+def save_outputs(history: History, *, show: bool = False, open_charts: bool = False,
+                 include_training: bool = True, policy_views=None):
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     csv_path = history.to_csv(os.path.join(OUTPUT_DIR, "history.csv"))
     json_path = history.to_json(os.path.join(OUTPUT_DIR, "history.json"))
     print(f"\nWrote time-series to {csv_path} and {json_path}")
+
+    policy_paths: dict[str, str] = {}
+    if policy_views:
+        from policy_view import write_policy_views
+
+        policy_paths = write_policy_views(policy_views, OUTPUT_DIR, show=show)
 
     try:
         import visualize
@@ -418,20 +440,21 @@ def save_outputs(history: History, *, show: bool = False, open_charts: bool = Fa
 
     paths = visualize.plot_all(history, OUTPUT_DIR, show=show)
     training_log_path = os.path.join(OUTPUT_DIR, "training_log.json")
-    training_chart = visualize.plot_episode_return_from_log(
+    training_chart = None if not include_training else visualize.plot_episode_return_from_log(
         training_log_path,
         os.path.join(OUTPUT_DIR, "episode_return.png"),
         show=show,
     )
     if training_chart:
         paths["episode_return"] = training_chart
-    review_time_chart = visualize.plot_avg_peer_review_time_from_log(
+    review_time_chart = None if not include_training else visualize.plot_avg_peer_review_time_from_log(
         training_log_path,
         os.path.join(OUTPUT_DIR, "avg_peer_review_time.png"),
         show=show,
     )
     if review_time_chart:
         paths["avg_peer_review_time"] = review_time_chart
+    paths.update(policy_paths)
 
     print("\nWrote charts to the runs/ folder:")
     for name, path in paths.items():
@@ -504,6 +527,30 @@ def build_discrete_rl_agents(
     return agents
 
 
+def _policy_load_paths(policy_path: str | None, count: int) -> tuple[list[str | None], str]:
+    """One load path per agent.
+
+    A directory yields a different file per agent. A single file is copied into
+    each agent's own backend, so later learning does not write one shared table.
+    """
+    if count <= 0:
+        return [], "starting from scratch"
+    if not policy_path:
+        return [None] * count, "starting from scratch"
+    if os.path.isdir(policy_path):
+        files = list_independent_policy_files(policy_path)
+        if not files:
+            return [None] * count, f"no policies in {policy_path}; starting from scratch"
+        paths = [files[i % len(files)] for i in range(count)]
+        source = f"loaded {len(files)} distinct policies from {policy_path}"
+        if count > len(files):
+            source += f" ({count} agents, policies repeat)"
+        return paths, source
+    if os.path.isfile(policy_path):
+        return [policy_path] * count, f"loaded baseline {policy_path}"
+    return [None] * count, f"policy {policy_path} not found; starting from scratch"
+
+
 def build_rl_agents(
     count: int,
     *,
@@ -513,31 +560,31 @@ def build_rl_agents(
     talent_min: float = SIM.talent_min,
     talent_max: float = SIM.talent_max,
 ) -> list[QLearningAgent]:
-    """Create independent RL agents (one private backend each).
+    """Create RL agents with one private backend each.
 
-    Each starts blank or, if ``policy_path`` points at an existing file, from
-    that saved baseline (then they diverge via their own online learning).
     ``run_simulation.py`` never writes policies back.
     """
     if count <= 0:
         return []
 
-    loaded = bool(policy_path) and os.path.exists(policy_path)
-    if policy_path and not loaded:
-        print(f"RL: policy {policy_path} not found; starting from scratch.")
+    paths, source = _policy_load_paths(policy_path, count)
+    if policy_path and all(path is None for path in paths):
+        print(f"RL: {source}.")
 
     agents: list[QLearningAgent] = []
     for i in range(count):
         backend = make_backend(backend_kind)
-        if loaded:
+        path = paths[i]
+        if path is not None:
             try:
-                backend.load(policy_path)
+                backend.load(path)
             except (ValueError, EOFError, OSError, KeyError):
                 # Policies from before the single-review overhaul are incompatible.
                 if i == 0:
-                    print(f"RL: policy {policy_path} is incompatible; using scratch.")
-                loaded = False
+                    print(f"RL: policy {path} is incompatible; using scratch.")
+                paths = [None] * count
                 backend = make_backend(backend_kind)
+                source = "starting from scratch"
         agents.append(
             QLearningAgent(
                 intrinsic_talent=_talent_for(
@@ -554,11 +601,8 @@ def build_rl_agents(
             )
         )
 
-    source = (
-        f"loaded baseline {policy_path}" if loaded else "starting from scratch"
-    )
     mode = "frozen (greedy)" if freeze else "learning online"
-    print(f"RL: {count} independent {backend_kind} agents, {source}, {mode}.")
+    print(f"RL: {count} separate {backend_kind} policies, {source}, {mode}.")
     return agents
 
 
@@ -574,24 +618,26 @@ def build_low_talent_rl_agents(
     if count <= 0:
         return []
 
-    loaded = bool(policy_path) and os.path.exists(policy_path)
-    if policy_path and not loaded:
-        print(f"Low-talent RL: policy {policy_path} not found; starting from scratch.")
+    paths, source = _policy_load_paths(policy_path, count)
+    if policy_path and all(path is None for path in paths):
+        print(f"Low-talent RL: {source}.")
 
     agents: list[LowTalentQLearningAgent] = []
     for i in range(count):
         backend = make_backend(backend_kind)
-        if loaded:
+        path = paths[i]
+        if path is not None:
             try:
-                backend.load(policy_path)
+                backend.load(path)
             except (ValueError, EOFError, OSError, KeyError):
                 if i == 0:
                     print(
-                        f"Low-talent RL: policy {policy_path} is incompatible; "
+                        f"Low-talent RL: policy {path} is incompatible; "
                         "using scratch."
                     )
-                loaded = False
+                paths = [None] * count
                 backend = make_backend(backend_kind)
+                source = "starting from scratch"
         agents.append(
             LowTalentQLearningAgent(
                 intrinsic_talent=low_talent_value,
@@ -603,12 +649,9 @@ def build_low_talent_rl_agents(
             )
         )
 
-    source = (
-        f"loaded baseline {policy_path}" if loaded else "starting from scratch"
-    )
     mode = "frozen (greedy)" if freeze else "learning online"
     print(
-        f"Low-talent RL: {count} independent {backend_kind} agents "
+        f"Low-talent RL: {count} separate {backend_kind} policies "
         f"(talent={low_talent_value:g}), {source}, {mode}."
     )
     return agents
@@ -882,6 +925,8 @@ def build_simulation(
         )
     )
 
+    if SIM.use_rate_talents:
+        assign_rate_talents(agents)
     seed_initial_papers(agents)
 
     return Environment(
@@ -916,6 +961,9 @@ def parse_args(argv=None):
         description="Run the Liberata peer-review simulation. By default, after "
         "the run it asks whether to save it to the docs/ gallery and what to call it."
     )
+    parser.add_argument('--fixed-strategy', action='store_true',
+                        help='Run four shared-talent cohorts with experience and citations; no RL.')
+    parser.add_argument('--agents-per-group', type=int, default=SIM.talent_agents_per_group)
     parser.add_argument(
         "--name",
         metavar="TITLE",
@@ -1459,8 +1507,65 @@ def _policy_paths(args) -> tuple[str | None, str | None, str | None]:
     return rl_policy_path, low_talent_rl_policy_path, dqn_policy_path
 
 
+def _run_fixed_strategy(args, *, seed: int, title: str | None = None) -> dict:
+    from dataclasses import asdict
+    from export_run import export_run
+    from run_talent_comparison import Actions, mechanism_results, run
+
+    history = History()
+
+    class GalleryActions(Actions):
+        def record_action(self, env, agent, record):
+            super().record_action(env, agent, record)
+            history.record_action(env, agent, record)
+
+        def record_step(self, env):
+            history.record_step(env)
+            if env.timestep % PROGRESS_INTERVAL == 0:
+                print(f'Timestep {env.timestep}/{args.timesteps} ({len(env.papers)} papers)', flush=True)
+
+    actions = GalleryActions()
+    run(seed, args.timesteps, actions, count_per_group=args.agents_per_group)
+    env = actions.environment
+    if not args.quiet:
+        print_summary(env, history)
+        print_choice_breakdown(history)
+    save_outputs(history, show=args.show, open_charts=args.open, include_training=False)
+    details = mechanism_results(env)
+    with open(os.path.join(OUTPUT_DIR, 'fixed_strategy_metrics.json'), 'w', encoding='utf-8') as stream:
+        json.dump(details, stream, indent=2)
+    config = asdict(SIM)
+    config.update(dict(simulation_mode='fixed_strategy', training_performed=False,
+        num_timesteps=args.timesteps, seed=seed, num_heuristic_agents=0,
+        num_rl_agents=0, num_dqn_agents=0, num_random_agents=0,
+        num_probabilistic_agents=0, num_low_talent_rl_agents=0,
+        num_fixed_strategy_agents=4*args.agents_per_group,
+        talent_agents_per_group=args.agents_per_group, init_papers_per_agent=0,
+        review_paradigm='continuous', continuous_publishing='threshold',
+        paper_effort_mode='fixed', use_merit_market_clearing=False,
+        forecast_horizon_timesteps=30))
+    if args.no_archive:
+        print('\nNot archived to the gallery (--no-archive).')
+    else:
+        run_title = title or args.name
+        if run_title is None:
+            try:
+                run_title = input('Gallery run name (blank to skip): ').strip()
+            except EOFError:
+                run_title = ''
+        if run_title:
+            run_id = export_run(history, config=config, title=run_title)
+            with open(os.path.join('docs', 'data', run_id, 'fixed_strategy_metrics.json'),
+                      'w', encoding='utf-8') as stream:
+                json.dump(details, stream, indent=2)
+            print(f'Archived run to docs/data/{run_id}/ (publish docs/data to update the website).')
+    return _summary_row(history, seed=seed, title=title or args.name or 'fixed strategy')
+
+
 def _run_once(args, *, seed: int, title: str | None = None) -> dict:
     _apply_review_bump_config(args)
+    if args.fixed_strategy:
+        return _run_fixed_strategy(args, seed=seed, title=title)
     rl_policy_path, low_talent_rl_policy_path, dqn_policy_path = _policy_paths(args)
 
     history = History()
@@ -1513,7 +1618,16 @@ def _run_once(args, *, seed: int, title: str | None = None) -> dict:
     if not args.quiet:
         print_summary(env, history)
         print_choice_breakdown(history)
-    save_outputs(history, show=args.show, open_charts=args.open)
+    from policy_view import views_for_agents
+
+    save_outputs(
+        history,
+        show=args.show,
+        open_charts=args.open,
+        policy_views=views_for_agents(
+            env.agents, publishing=env.continuous_publishing
+        ),
+    )
 
     if args.no_archive:
         print("\nNot archived to the gallery (--no-archive).")

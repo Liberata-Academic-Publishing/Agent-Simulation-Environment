@@ -34,7 +34,9 @@ class SimConfig:
     num_low_talent_rl_agents: int = 0
     num_timesteps: int = 5000
     seed: int = 11
-    forecast_horizon_timesteps: int = 30
+    # Must cover manuscript completion plus a post-publication earning window;
+    # otherwise writing has zero value in the agents' forward-looking choices.
+    forecast_horizon_timesteps: int = 200
     output_dir: str = "runs"
 
     # --- Sampled reviewer bidding (opt-in; legacy remains the control) ---
@@ -50,17 +52,18 @@ class SimConfig:
     # Papers seeded before timestep 1 (bootstraps review material). Set
     # init_papers_per_agent=0 for no starting papers, or init_ac_min=init_ac_max=0
     # to start every agent at zero capital.
-    init_papers_per_agent: int = 10
-    init_ac_min: float = 0
-    init_ac_max: float = 0
+    init_papers_per_agent: int = 2
+    initial_listing_stagger_timesteps: int = 50
+    init_ac_min: float = 0.0
+    init_ac_max: float = 2.0     # ~ one typical paper's lifetime citation AC
     init_accrual_min: float = 0.8
     init_accrual_max: float = 1.5
 
     # --- Paper economics -------------------------------------------------
-    default_accrual_rate: float = 1.0       # base AC gained per timestep, before bumps
-    default_review_share: float = 0.005      # legacy fallback when fair-market pricing is off
+    default_accrual_rate: float = 1.0       # forecast calibration before any environment runs
+    default_review_share: float = 0.0        # legacy fallback when fair-market pricing is off
     default_max_reviewer_share: float = 1.0        # max share per review (100% of author stake)
-    min_offer_share: float = 0.0001          # floor on review offers (0%)
+    min_offer_share: float = 0.0             # floor on review offers (0%)
     use_fair_market_pricing: bool = True
     prior_review_epsilon: float = 0.05      # prior reviewer effect before review history exists
     # Author-side pricing policy. ``static_fair_market`` preserves the current
@@ -86,7 +89,7 @@ class SimConfig:
     fast_claim_max_wait: float | None = 0.0
     # Reviewer's fraction of incremental review surplus in fair-market offers
     # (author keeps ``1 - reviewer_surplus_share`` of the bump-created value).
-    reviewer_surplus_share: float = 0.5
+    reviewer_surplus_share: float = 0.0
 
     # --- Market economics (optional; all off preserves legacy behavior) ----
     use_competition_adjusted_forecast: bool = True
@@ -102,15 +105,47 @@ class SimConfig:
     # paper's base accrual rate and the accrual bump a review can earn, and it
     # drives the per-reviewer share the author is willing to offer.
     quality_sigma: float = 0.20
+    # Optional shared quality/rate talents, enabled with Agent.configure_talents.
+    talent_rate_sigma: float = 0.20
+    talent_min_rate: float = 0.01
+    talent_low: float = 0.6
+    talent_high: float = 1.4
+    talent_agents_per_group: int = 20
+    experience_alpha: float = 0.30
+    experience_h: float = 9.0
     min_paper_quality: float = 0.10
     quality_price_scale: float = 1.5    # higher quality -> smaller offered share
     history_price_scale: float = 0.5    # better reviewer history -> larger offered share
+
+    # --- Citation network --------------------------------------------------
+    # Each newly published paper cites a bounded, softmax-weighted sample of
+    # earlier eligible papers (favoring higher quality and more recent work),
+    # so the number of citations per paper does not grow with the corpus.
+    # Citations are the ONLY source of AC: each cited paper's ``current_ac``
+    # grows by its split of ``citation_ac_per_new_paper``, and a completed peer
+    # review multiplies the paper's citation weight by ``1 + epsilon``.
+    # Disabling citations means no AC is ever created.
+    citations_enabled: bool = True
+    citation_reference_count: float = 20.0
+    # "fixed": every paper cites exactly round(citation_reference_count) prior
+    # papers. "poisson": each paper's reference count is drawn from
+    # Poisson(citation_reference_count), so individual papers vary while the
+    # average across papers still equals citation_reference_count.
+    citation_reference_count_distribution: str = "fixed"  # "fixed" | "poisson"
+    citation_quality_weight: float = 1.0
+    # Per-timestep (per-day) geometric decay of citation weight: weight ∝ r^age.
+    # Lifetime weight sums to 1/(1-r); half-life = ln(0.5)/ln(r) days.
+    citation_age_decay_ratio: float = 0.998 # currently a year
+    citation_ac_per_new_paper: float = 1.0
+    # EMA weight for the citation AC handed out per timestep, which scales each
+    # paper's ``accrual_rate`` forecast (expected citation AC per timestep).
+    citation_income_smoothing: float = 0.01
 
     # --- Effort & reward model -------------------------------------------
     review_paradigm: str = "continuous"       # "continuous" | "discrete"
     review_effort_per_timestep: float = 1.0     # effort added per review timestep
     writing_effort_per_timestep: float = 1.0    # continuous writing effort per timestep
-    min_review_effort_threshold: float = 0.0    # minimum valid review/share effort
+    min_review_effort_threshold: float = 1.0    # minimum valid review/share effort
     good_faith_review_threshold: float = 3.0    # continuous-mode classification
     bad_review_timesteps: float = 1.0           # discrete bad-faith duration (T_B)
     # Fallback when continuous publishing is ``choice``; otherwise derived from
@@ -139,18 +174,23 @@ class SimConfig:
     # Continuous writing: "choice" = agent picks when to finish/list; "threshold"
     # = auto-publish after a fixed amount of writing effort (no early finish).
     continuous_publishing: str = "threshold"       # "choice" | "threshold"
-    continuous_paper_timesteps: float = 50.0    # writing effort to auto-publish
+    continuous_paper_timesteps: float = 50.0    # auto-publish effort when paper_effort_mode = "fixed"
     # Fallback when continuous publishing is ``choice``; otherwise derived from
     # ``continuous_paper_timesteps`` (see ``discrete_manuscript_timesteps``).
     discrete_paper_timesteps: float = 200.0
     discrete_writing_effort_per_timestep: float = 1.0
     # Paper effort target for each manuscript. ``fixed`` preserves the existing
-    # thresholds above; ``uniform`` samples once per paper from the 50-150 band
-    # discussed in sync; ``quality_scaled`` maps higher sampled paper quality to
-    # a larger target inside that same band.
-    paper_effort_mode: str = "quality_scaled"             # "fixed" | "uniform" | "quality_scaled"
-    paper_effort_min: float = 130.0
-    paper_effort_max: float = 170.0
+    # thresholds above; ``uniform`` samples once per paper from
+    # [paper_effort_min, paper_effort_max]; ``quality_scaled`` maps higher
+    # sampled paper quality to a larger target inside that band. With
+    # threshold publishing, a non-fixed mode replaces continuous_paper_timesteps.
+    paper_effort_mode: str = "uniform"             # "fixed" | "uniform" | "quality_scaled"
+    paper_effort_min: float = 20.0
+    paper_effort_max: float = 20.0
+    # Start each agent partway through its first paper (uniform in
+    # [0, completion threshold)) so first publications, and the citation AC
+    # they pay out, are staggered instead of arriving in synchronized waves.
+    randomize_initial_paper_progress: bool = True
     # Continuous-mode asymptotic writing model: a paper's accrual rate approaches
     # its quality-defined ceiling as accumulated writing effort grows. Higher k
     # reaches the ceiling faster (k=0.2 -> ~63% at 5 ts, ~86% at 10 ts).
@@ -169,16 +209,52 @@ class SimConfig:
     preferred_extra_review_timesteps: float = 4.0
 
     # --- RL agents (part of the simulation) ------------------------------
-    rl_backend: str = "tabular"     # "tabular" | "linear"
+    rl_backend: str = "tabular"     # stateless table: one Q-value per action
     rl_epsilon: float = 0.1         # exploration when learning online
-    rl_gamma: float = 0.95          # TD discount
-    rl_reward_ac_weight: float = 0.0      # weight on Δ academic capital
-    rl_reward_rank_weight: float = 100.0   # weight on Δ AC percentile rank (0..1)
-    rl_reward_accrual_weight: float = 1.0  # weight on Δ portfolio accrual rate
+    rl_gamma: float = 0.99          # discount; a reward 100 steps away keeps about 37%
+    # Publication payment for a finished manuscript. Each writing step since
+    # the previous publication is updated toward ``reward / n``. Review
+    # actions are left out. 0 keeps the one-step update only.
+    rl_trace_lambda: float = 1.0
+    # Reward uses the capital and forecast change caused by ownership the
+    # action gained or lost. Citations on shares the agent already held are
+    # left out, so a review is credited only for share it gained. The shaping
+    # term stands in for the future citation stream of that new ownership.
+    # It stays at 20 so the publication payment does not shrink when
+    # ``rl_gamma`` drops. Set it to 0 for realized capital from ownership
+    # changes only.
+    rl_reward_ac_weight: float = 1.0      # weight on Δ academic capital (citation AC)
+    rl_reward_rank_weight: float = 0.0     # weight on Δ AC percentile rank (0..1)
+    rl_reward_accrual_weight: float = 20.0  # weight on Δ expected citation AC per timestep
+    # Φ is this weight times manuscript progress, in [0, 1]. The reward adds
+    # γΦ(next) − Φ(now). A step that does not advance the paper is charged
+    # (1−γ)Φ, and publishing resets Φ to 0. The accrual payment does not cover
+    # that drop, so a nearly finished manuscript makes continuing a review
+    # score better than writing. 0 leaves manuscript progress out of the reward.
+    rl_progress_potential: float = 0.0
+    # Range of the RL price feature. Offered review shares are log10-scaled
+    # from ``rl_share_feature_min`` (-> 0) to ``rl_share_feature_max`` (-> 1)
+    # and clipped outside it. The min matches the 0.01% offer floor; observed
+    # accepted offers run ~0.4%--50% (median ~3%).
+    rl_share_feature_min: float = 1e-4
+    rl_share_feature_max: float = 0.5
     rl_autoload_policy: bool = True  # auto-load the saved baseline for RL agents
     rl_low_talent_autoload_policy: bool = True  # auto-load low-talent RL policy
     talent_min: float = 0.6         # default talent spread; CLI can widen/narrow it
     talent_max: float = 1.4
+    # Rate talent (working speed), independent of quality talent. When enabled,
+    # each agent gets a uniform draw from [rate_talent_min, rate_talent_max];
+    # its writing and review effort per timestep scale by that rate.
+    use_rate_talents: bool = True
+    rate_talent_min: float = 0.6
+    rate_talent_max: float = 1.4
+    # Talent mechanisms for agents outside the fixed-strategy cohorts (those
+    # cohorts always use all three). Experience growth multiplies quality and
+    # rate talent by 1 + experience_alpha * n / (n + experience_h) after n
+    # publications. Review quality draws scale each review's epsilon by a
+    # N(reviewer quality talent, quality_sigma) draw instead of 1.
+    use_experience_growth: bool = True
+    use_review_quality_draws: bool = True
     low_talent_value: float = 0.3   # fixed intrinsic talent for low-talent RL agents
     policies_dir: str = "policies"
 
@@ -192,12 +268,24 @@ class SimConfig:
     dqn_hidden_size: int = 64
     dqn_hidden_layers: int = 2
     dqn_lr: float = 0.001
-    dqn_gamma: float = 0.95
+    dqn_gamma: float = 0.5
     dqn_epsilon: float = 0.1
     dqn_replay_capacity: int = 10000
     dqn_batch_size: int = 32
     dqn_target_sync: int = 200
+    # Steps of real reward in each replay target. A zero-share review
+    # contributes nothing, so a longer window discounts the later publication.
+    dqn_n_step: int = 8
     dqn_autoload_policy: bool = True
+
+
+    def __post_init__(self):
+        import math
+
+        if not math.isfinite(self.experience_alpha) or self.experience_alpha < 0:
+            raise ValueError("experience_alpha must be finite and nonnegative")
+        if not math.isfinite(self.experience_h) or self.experience_h <= 0:
+            raise ValueError("experience_h must be finite and positive")
 
 
 @dataclass(frozen=True)
@@ -211,8 +299,13 @@ class TrainConfig:
     num_heuristic: int = 0
     eps_start: float = 1.0
     eps_end: float = 0.05
-    low_talent: bool = True
+    low_talent: bool = False
     low_talent_value: float = 0.3
+    # Training-only review supply. When true, each training episode keeps one
+    # unowned paper listed per agent so a claim is always possible. Those papers
+    # are not authored by anyone in the roster, and the merit-market scan is
+    # skipped. Turn this off to train against the ordinary seeded marketplace.
+    unlimited_review_supply: bool = False
 
 
 @dataclass(frozen=True)
@@ -225,6 +318,7 @@ class TrainDQNConfig:
     num_heuristic: int = 0
     eps_start: float = 1.0
     eps_end: float = 0.05
+    unlimited_review_supply: bool = True
 
 
 @dataclass(frozen=True)
@@ -239,6 +333,7 @@ class TrainDiscreteConfig:
     eps_end: float = 0.05
     low_talent: bool = False
     low_talent_value: float = 0.3
+    unlimited_review_supply: bool = True
 
 
 SIM = SimConfig()
@@ -268,13 +363,31 @@ def discrete_manuscript_timesteps() -> float:
 
 
 def default_policy_path(backend_kind: str) -> str:
-    """Canonical on-disk path for a trained policy of the given backend.
+    """Canonical on-disk path for the trained policy of the given backend.
 
-    Tabular pickles (``.pkl``); linear uses ``np.save`` (``.npy``). This is the
-    one implementation both train_rl.py (save) and run_simulation.py (load) use.
+    Tabular pickles (``.pkl``); linear uses ``np.save`` (``.npy``). Independent
+    training writes the single best table here.
     """
     ext = ".pkl" if backend_kind == "tabular" else ".npy"
     return os.path.join(SIM.policies_dir, f"policy_{backend_kind}{ext}")
+
+
+def list_independent_policy_files(directory: str) -> list[str]:
+    """Sorted ``agent_<n>.pkl`` / ``agent_<n>.npy`` files in ``directory``."""
+    if not os.path.isdir(directory):
+        return []
+    found: list[tuple[int, str]] = []
+    for name in os.listdir(directory):
+        stem, ext = os.path.splitext(name)
+        if ext not in (".pkl", ".npy") or not stem.startswith("agent_"):
+            continue
+        try:
+            index = int(stem.removeprefix("agent_"))
+        except ValueError:
+            continue
+        found.append((index, os.path.join(directory, name)))
+    found.sort()
+    return [path for _, path in found]
 
 
 def default_dqn_policy_path() -> str:

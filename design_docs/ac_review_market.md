@@ -172,3 +172,20 @@ quality can suffer. Finite sampling can miss feasible trades; high thresholds
 can stall the market. No quality guarantee or reputation punishment exists.
 Default authors use fixed budgets and release all eligible papers. None of
 these assumptions should be hidden when interpreting experimental outcomes.
+
+
+## Integration onto agent_testing (2026-11-18)
+
+The market branch now integrates the complete committed agent_testing history
+through a615e3e, including citation-based rewards, talent/experience and training
+supply support. Legacy market behavior follows that baseline. The sampled market
+remains opt-in and uses the same underlying citation and work lifecycle.
+
+The November 10 pilot outputs were generated on the older main ad5a586 baseline.
+They are historical results, not measurements of the integrated citation model.
+In particular, compare_review_markets.py's accrual-difference metrics must not be
+interpreted as realized citation gains on the integrated baseline. Revalidate the
+measurement definitions before drawing fresh economic conclusions from that script.
+
+Uncommitted changes and untracked experiments in the separate agent_testing
+checkout were not imported as branch history. That checkout was left intact.

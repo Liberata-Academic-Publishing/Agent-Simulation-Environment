@@ -1,0 +1,9 @@
+{
+  "base_branch": "agent_testing",
+  "base_commit": "a615e3e",
+  "market_tests_passed": 13,
+  "citation_talent_fixed_tests_passed": 30,
+  "baseline_regression_failures": 21,
+  "merged_regression_failures": 21,
+  "new_failures": []
+}

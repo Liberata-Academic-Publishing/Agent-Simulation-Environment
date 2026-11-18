@@ -107,6 +107,7 @@ def _listed_paper(author, **kwargs) -> Paper:
 class MarketplaceLifecycleTest(unittest.TestCase):
     def setUp(self):
         Agent.all_papers = []
+        Paper.reset_citation_market()
 
     def test_published_paper_lists_one_timestep_later(self):
         # Continuous mode: the author finishes a paper by choice, not a threshold.
@@ -157,7 +158,7 @@ class MarketplaceLifecycleTest(unittest.TestCase):
         share = paper.add_review(reviewer, MIN_REVIEW_EFFORT_THRESHOLD)
 
         self.assertGreater(share, 0.0)
-        self.assertGreater(paper.accrual_rate, 1.0)
+        self.assertEqual(paper.accrual_rate, 1.0)
         self.assertEqual(paper.completed_peer_reviews, 1)
         self.assertIn(reviewer, paper.share_distribution)
 
@@ -179,6 +180,7 @@ class MarketplaceLifecycleTest(unittest.TestCase):
 class EconomicsTest(unittest.TestCase):
     def setUp(self):
         Agent.all_papers = []
+        Paper.reset_citation_market()
 
     def test_review_bump_rises_and_saturates_with_sigmoid(self):
         import Paper as paper_mod
@@ -223,7 +225,7 @@ class EconomicsTest(unittest.TestCase):
         low.add_review(low_reviewer, MIN_REVIEW_EFFORT_THRESHOLD)
         high.add_review(high_reviewer, MIN_REVIEW_EFFORT_THRESHOLD + 3)
 
-        self.assertGreater(high.accrual_rate, low.accrual_rate)
+        self.assertGreater(high.review_bump_epsilon, low.review_bump_epsilon)
 
     def test_price_drops_for_higher_quality_papers(self):
         author = ScriptAgent("author")
@@ -300,6 +302,7 @@ class EconomicsTest(unittest.TestCase):
 class ReviewBumpDecayTest(unittest.TestCase):
     def setUp(self):
         Agent.all_papers = []
+        Paper.reset_citation_market()
         self.decay_sim = replace(
             config.SIM,
             review_bump_duration=REVIEW_BUMP_DECAY,
@@ -317,17 +320,17 @@ class ReviewBumpDecayTest(unittest.TestCase):
     def test_decay_peak_matches_permanent_bump_at_review(self):
         author = ScriptAgent("author")
         reviewer = ScriptAgent("reviewer")
+        reviewer.sample_review_quality = lambda: 1.0
         effort = MIN_REVIEW_EFFORT_THRESHOLD + 2.0
         paper = _listed_paper(author, quality=1.0, accrual_rate=1.0)
         paper.update_price_table([reviewer], 1.0, 0.0)
-        expected_peak = paper.accrual_rate * (1.0 + review_accrual_bump(effort, 1.0))
 
         p1, p2, p3 = self._decay_patches()
         with p1, p2, p3:
             paper.start_review(reviewer, current_timestep=5)
             paper.finish_review(reviewer, effort, current_timestep=5)
 
-        self.assertAlmostEqual(paper.accrual_rate, expected_peak)
+        self.assertAlmostEqual(paper.accrual_rate, 1.0)
         self.assertAlmostEqual(paper.base_accrual_rate, 1.0)
         self.assertAlmostEqual(
             paper.review_bump_epsilon, review_accrual_bump(effort, 1.0)
@@ -344,12 +347,11 @@ class ReviewBumpDecayTest(unittest.TestCase):
         with p1, p2, p3:
             paper.start_review(reviewer, current_timestep=1)
             paper.finish_review(reviewer, effort, current_timestep=1)
-            peak = paper.accrual_rate
-            paper.refresh_accrual_rate(11)
-            later = paper.accrual_rate
+            peak = paper.review_bump_at(1)
+            later = paper.review_bump_at(11)
 
         self.assertGreater(peak, later)
-        self.assertGreater(later, paper.base_accrual_rate)
+        self.assertGreater(later, 0.0)
 
     def test_decay_hard_cap_returns_to_base_rate(self):
         author = ScriptAgent("author")
@@ -362,30 +364,27 @@ class ReviewBumpDecayTest(unittest.TestCase):
         with p1, p2, p3:
             paper.start_review(reviewer, current_timestep=0)
             paper.finish_review(reviewer, effort, current_timestep=0)
-            paper.refresh_accrual_rate(25)
+            bump_after_cap = paper.review_bump_at(25)
 
-        self.assertAlmostEqual(paper.accrual_rate, paper.base_accrual_rate)
+        self.assertEqual(bump_after_cap, 0.0)
 
-    def test_decay_accrual_uses_shrinking_rate(self):
+    def test_decay_shrinks_citation_weight_boost(self):
         author = ScriptAgent("author")
         reviewer = ScriptAgent("reviewer")
         effort = MIN_REVIEW_EFFORT_THRESHOLD + 1.0
         paper = _listed_paper(author, quality=1.0, accrual_rate=1.0, current_ac=0.0)
+        unreviewed = _listed_paper(author, quality=1.0, accrual_rate=1.0)
         paper.update_price_table([reviewer], 1.0, 0.0)
 
         p1, p2, p3 = self._decay_patches()
         with p1, p2, p3:
             paper.start_review(reviewer, current_timestep=10)
             paper.finish_review(reviewer, effort, current_timestep=10)
-            paper.refresh_accrual_rate(10)
-            paper.accrue_ac()
-            first_gain = paper.current_ac
-            paper.refresh_accrual_rate(11)
-            paper.accrue_ac()
-            second_gain = paper.current_ac - first_gain
+            boost_now = paper.citation_log_weight(10) - unreviewed.citation_log_weight(10)
+            boost_later = paper.citation_log_weight(15) - unreviewed.citation_log_weight(15)
 
-        self.assertGreater(first_gain, 0.0)
-        self.assertGreaterEqual(first_gain, second_gain)
+        self.assertGreater(boost_now, boost_later)
+        self.assertGreater(boost_later, 0.0)
 
     def test_review_bump_factor_helpers(self):
         with mock.patch("Paper.SIM", self.decay_sim):
@@ -398,6 +397,7 @@ class ReviewBumpDecayTest(unittest.TestCase):
 class MarketEconomicsTest(unittest.TestCase):
     def setUp(self):
         Agent.all_papers = []
+        Paper.reset_citation_market()
         Agent.all_agents = []
 
     def test_environment_scarcity_multiplier_when_crowded(self):
@@ -596,6 +596,7 @@ class MarketEconomicsTest(unittest.TestCase):
 class ReviewerStateTest(unittest.TestCase):
     def setUp(self):
         Agent.all_papers = []
+        Paper.reset_citation_market()
 
     def test_peer_review_history_updates_on_completion(self):
         author = ScriptAgent("author")
@@ -674,6 +675,7 @@ class ReviewerStateTest(unittest.TestCase):
 class ReviewParadigmTest(unittest.TestCase):
     def setUp(self):
         Agent.all_papers = []
+        Paper.reset_citation_market()
 
     def test_continuous_mode_classifies_finished_reviews_by_threshold(self):
         author = ScriptAgent("author")
@@ -809,6 +811,7 @@ class ReviewParadigmTest(unittest.TestCase):
 class HeuristicPolicyTest(unittest.TestCase):
     def setUp(self):
         Agent.all_papers = []
+        Paper.reset_citation_market()
 
     def test_writes_when_nothing_is_reviewable(self):
         agent = HeuristicAgent(intrinsic_talent=1.0)
@@ -859,6 +862,7 @@ class HeuristicPolicyTest(unittest.TestCase):
 class EnvironmentTest(unittest.TestCase):
     def setUp(self):
         Agent.all_papers = []
+        Paper.reset_citation_market()
 
     def test_work_phase_runs_agents_each_timestep(self):
         log: list[str] = []
@@ -870,7 +874,7 @@ class EnvironmentTest(unittest.TestCase):
         self.assertEqual(sorted(log), ["first", "second"])
         self.assertEqual(env.timestep, 1)
 
-    def test_accrual_and_capital_update_each_timestep(self):
+    def test_capital_tracks_paper_ac_without_passive_accrual(self):
         author = ScriptAgent("author")
         reviewer = ScriptAgent("reviewer")
         paper = Paper(
@@ -883,10 +887,11 @@ class EnvironmentTest(unittest.TestCase):
 
         env.run_timestep()
 
+        # AC only comes from citations, so with no new papers it stays put.
         self.assertEqual(env.timestep, 1)
-        self.assertEqual(paper.current_ac, 12.0)
-        self.assertAlmostEqual(author.academic_capital, 9.0)
-        self.assertAlmostEqual(reviewer.academic_capital, 3.0)
+        self.assertEqual(paper.current_ac, 10.0)
+        self.assertAlmostEqual(author.academic_capital, 7.5)
+        self.assertAlmostEqual(reviewer.academic_capital, 2.5)
 
     def test_history_records_timesteps_and_actions(self):
         author = ScriptAgent("author")
@@ -905,8 +910,52 @@ class EnvironmentTest(unittest.TestCase):
         self.assertEqual(history.timesteps, [1])
         self.assertEqual(history.days, [1])  # backwards-compatible alias
         self.assertEqual(len(history.actions), 2)
-        self.assertAlmostEqual(history.agent_capital["author"][0], 9.0)
+        self.assertAlmostEqual(history.agent_capital["author"][0], 7.5)
         self.assertEqual(history.scalars["num_papers"][0], 1.0)
+
+    def test_history_records_publication_and_time_allocation_metrics(self):
+        author = ScriptAgent("author", continuous=[("research_finish", None)])
+        history = History()
+        env = Environment(
+            agents=[author],
+            papers=[],
+            history=history,
+            continuous_publishing="choice",
+        )
+
+        env.run_timestep()
+
+        self.assertEqual(history.scalars["papers_published_this_timestep"], [1.0])
+        self.assertEqual(history.scalars["cumulative_papers_published"], [1.0])
+        self.assertEqual(history.scalars["paper_publication_rate_trailing_100"], [1.0])
+        self.assertEqual(history.scalars["writing_time_share_this_timestep"], [1.0])
+        self.assertEqual(history.scalars["review_time_share_this_timestep"], [0.0])
+        self.assertEqual(history.scalars["unallocated_time_share_this_timestep"], [0.0])
+
+    def test_history_distinguishes_open_and_in_progress_review_backlog(self):
+        author = ScriptAgent("author")
+        reviewer = ReviewKindScriptAgent(
+            GOOD_FAITH_REVIEW, name="reviewer", marketplace=[]
+        )
+        paper = _listed_paper(author, quality=1.0)
+        reviewer.marketplace = [paper]
+        Agent.all_papers = [paper]
+        history = History()
+        env = Environment(
+            agents=[author, reviewer],
+            papers=Agent.all_papers,
+            history=history,
+            review_paradigm="discrete",
+            use_merit_market_clearing=False,
+        )
+
+        env.run_timestep()
+
+        self.assertEqual(history.scalars["papers_on_market"][-1], 0.0)
+        self.assertEqual(history.scalars["papers_in_review"][-1], 1.0)
+        self.assertEqual(history.scalars["review_backlog_total"][-1], 1.0)
+        self.assertEqual(history.scalars["writing_time_share_this_timestep"][-1], 0.5)
+        self.assertEqual(history.scalars["review_time_share_this_timestep"][-1], 0.5)
 
     def test_history_exports_agent_group_summary(self):
         author = ScriptAgent("author")
@@ -1016,6 +1065,7 @@ class EnvironmentTest(unittest.TestCase):
 class ContinuousAccrualTest(unittest.TestCase):
     def setUp(self):
         Agent.all_papers = []
+        Paper.reset_citation_market()
 
     def test_accrual_rate_rises_and_saturates_with_effort(self):
         ceiling = accrual_rate_from_quality(1.0)
@@ -1042,6 +1092,7 @@ class ContinuousAccrualTest(unittest.TestCase):
 class ContinuousMergedPhaseTest(unittest.TestCase):
     def setUp(self):
         Agent.all_papers = []
+        Paper.reset_citation_market()
 
     def _listed(self, author, **kwargs):
         paper = _listed_paper(author, **kwargs)
@@ -1146,6 +1197,7 @@ class ContinuousMergedPhaseTest(unittest.TestCase):
 class ContinuousThresholdPublishingTest(unittest.TestCase):
     def setUp(self):
         Agent.all_papers = []
+        Paper.reset_citation_market()
 
     def test_auto_publishes_when_writing_effort_reaches_threshold(self):
         agent = ScriptAgent("author")
@@ -1178,6 +1230,7 @@ class ContinuousThresholdPublishingTest(unittest.TestCase):
 class DiscreteQLearningAgentTest(unittest.TestCase):
     def setUp(self):
         Agent.all_papers = []
+        Paper.reset_citation_market()
         Agent.all_agents = []
 
     def test_choose_review_kind_uses_q_pending_kind(self):
@@ -1281,55 +1334,77 @@ class DiscreteQLearningAgentTest(unittest.TestCase):
 
 
 class QLearningRewardTest(unittest.TestCase):
-    def test_ac_percentile_rank_handles_ties(self):
-        from QLearningAgent import ac_percentile_rank
+    def test_reward_is_the_capital_change(self):
+        from QLearningAgent import QLearningAgent
 
-        self.assertAlmostEqual(ac_percentile_rank(5.0, [1.0, 5.0, 5.0, 9.0]), 0.5)
-        self.assertAlmostEqual(ac_percentile_rank(9.0, [1.0, 5.0, 5.0, 9.0]), 0.875)
-        self.assertAlmostEqual(ac_percentile_rank(1.0, [1.0, 5.0, 5.0, 9.0]), 0.125)
-
-    def test_reward_includes_delta_rank(self):
-        from config import SIM
-        from QLearningAgent import QLearningAgent, ac_percentile_rank
-
-        peers = [
-            ScriptAgent("peer-a"),
-            ScriptAgent("peer-b"),
-        ]
-        peers[0].academic_capital = 10.0
-        peers[1].academic_capital = 30.0
         agent = QLearningAgent(intrinsic_talent=1.0, academic_capital=20.0, learning=False)
-        Agent.all_agents = [agent, *peers]
         agent._last_capital = 15.0
-        agent._last_rank = ac_percentile_rank(15.0, [15.0, 10.0, 30.0])
 
-        reward = agent._compute_reward()
-        expected_ac = 5.0
-        expected_rank = ac_percentile_rank(20.0, [20.0, 10.0, 30.0]) - agent._last_rank
+        self.assertAlmostEqual(agent._compute_reward(), 5.0)
 
-        self.assertAlmostEqual(
-            reward,
-            SIM.rl_reward_ac_weight * expected_ac
-            + SIM.rl_reward_rank_weight * expected_rank,
-        )
-
-    def test_reward_includes_delta_accrual_rate(self):
-        from config import SIM
+    def test_reward_counts_citations_on_shares_already_held(self):
         from QLearningAgent import QLearningAgent
 
         author = ScriptAgent("author")
         paper = Paper(author=author, accrual_rate=1.0, current_ac=10.0)
+        reviewer = QLearningAgent(intrinsic_talent=1.0, learning=False)
+        paper.share_distribution[reviewer] = 0.5
+        reviewer.academic_capital = 5.0
         Agent.all_papers = [paper]
-        agent = QLearningAgent(intrinsic_talent=1.0, learning=False)
-        agent._last_accrual_rate = 0.5
+        reviewer._remember_reward_baseline()
 
-        reward = agent._compute_reward()
-        expected_accrual = agent._portfolio_accrual_rate() - 0.5
+        reviewer.academic_capital = 7.0
 
-        self.assertAlmostEqual(
-            reward,
-            SIM.rl_reward_accrual_weight * expected_accrual,
+        self.assertAlmostEqual(reviewer._compute_reward(), 2.0)
+
+    def test_rewarded_write_stays_above_an_unrewarded_claim(self):
+        from QLearningAgent import QAction, QLearningAgent
+
+        agent = QLearningAgent(intrinsic_talent=1.0, epsilon=0.0, learning=True)
+        agent.gamma = 0.5
+        legal = [int(QAction.WRITE), int(QAction.CLAIM)]
+        agent._last_action = int(QAction.WRITE)
+        agent._compute_reward = lambda: 5.0
+        agent._learn(legal)
+        agent._last_action = int(QAction.CLAIM)
+        agent._compute_reward = lambda: 0.0
+        agent._learn(legal)
+
+        q = agent.backend.q_values()
+        self.assertGreater(q[QAction.WRITE], q[QAction.CLAIM])
+        self.assertEqual(agent._select(legal), int(QAction.WRITE))
+
+    def test_continuous_actions_match_the_simulation(self):
+        from Agent import CONTINUOUS_CLAIM, CONTINUOUS_RESEARCH, CONTINUOUS_REVIEW
+        from QLearningAgent import QAction, QLearningAgent
+
+        author = ScriptAgent("author")
+        agent = QLearningAgent(intrinsic_talent=1.0, epsilon=0.0, learning=False)
+        agent.configure_review_paradigm("continuous")
+        agent.configure_continuous_publishing("threshold")
+        Agent.all_papers = [_listed_paper(author)]
+        Agent.all_agents = [author, agent]
+
+        self.assertEqual(
+            agent._legal_continuous_actions(),
+            [int(QAction.WRITE), int(QAction.CLAIM)],
         )
+        kind, paper = agent.choose_continuous_action()
+        self.assertEqual((kind, paper), (CONTINUOUS_RESEARCH, None))
+
+        agent.backend.q_values()[QAction.CLAIM] = 1.0
+        kind, paper = agent.choose_continuous_action()
+        self.assertEqual(kind, CONTINUOUS_CLAIM)
+        self.assertIs(paper, Agent.all_papers[0])
+
+        agent.active_review_paper = Agent.all_papers[0]
+        self.assertEqual(
+            agent._legal_continuous_actions(),
+            [int(QAction.FINISH_WRITE), int(QAction.CONTINUE)],
+        )
+        agent.backend.q_values()[QAction.CONTINUE] = 2.0
+        kind, paper = agent.choose_continuous_action()
+        self.assertEqual((kind, paper), (CONTINUOUS_REVIEW, None))
 
 
 class LowTalentRLAgentsTest(unittest.TestCase):
@@ -1404,7 +1479,8 @@ class DQNAgentTest(unittest.TestCase):
         import numpy as np
 
         from DQNAgent import make_dqn_backend
-        from QLearningAgent import NUM_ACTIONS, NUM_FEATURES
+        from DQNAgent import NUM_FEATURES
+        from QLearningAgent import NUM_ACTIONS
 
         backend = make_dqn_backend(hidden_size=8, hidden_layers=1)
         q = backend.q_values(np.zeros(NUM_FEATURES, dtype=np.float64))
@@ -1414,7 +1490,8 @@ class DQNAgentTest(unittest.TestCase):
         import numpy as np
 
         from DQNAgent import make_dqn_backend
-        from QLearningAgent import NUM_ACTIONS, NUM_FEATURES
+        from DQNAgent import NUM_FEATURES
+        from QLearningAgent import NUM_ACTIONS
 
         backend = make_dqn_backend(batch_size=4, replay_capacity=32)
         state = np.random.rand(NUM_FEATURES)
@@ -1431,7 +1508,7 @@ class DQNAgentTest(unittest.TestCase):
         import numpy as np
 
         from DQNAgent import make_dqn_backend
-        from QLearningAgent import NUM_FEATURES
+        from DQNAgent import NUM_FEATURES
 
         backend = make_dqn_backend(hidden_size=16, hidden_layers=1)
         features = np.linspace(0.1, 0.9, NUM_FEATURES)
@@ -1446,6 +1523,47 @@ class DQNAgentTest(unittest.TestCase):
             np.testing.assert_allclose(before, after)
         finally:
             os.remove(path)
+
+    def test_double_dqn_scores_the_online_networks_choice(self):
+        import numpy as np
+
+        from DQNAgent import double_dqn_targets
+
+        online = np.array([[0.0, 5.0]])
+        target = np.array([[4.0, 0.2]])
+        mask = np.ones((1, 2))
+        got = double_dqn_targets(online, target, mask, np.array([0.0]), np.array([1.0]))
+        self.assertAlmostEqual(float(got[0]), 0.2)
+
+    def test_n_step_return_adds_nothing_for_a_zero_reward(self):
+        import numpy as np
+
+        from DQNAgent import DQNAgent, make_dqn_backend
+        from DQNAgent import NUM_FEATURES
+
+        agent = DQNAgent(
+            intrinsic_talent=1.0,
+            backend=make_dqn_backend(batch_size=8),
+            gamma=0.5,
+            n_step=2,
+            learning=True,
+        )
+        rewards = iter([0.0, 4.0])
+        agent._compute_reward = lambda: next(rewards)
+        first = np.zeros(NUM_FEATURES)
+        second = np.ones(NUM_FEATURES)
+        agent._last_features = first
+        agent._last_action = 0
+        agent._learn_transition(second, [0, 1])
+        self.assertEqual(len(agent.dqn_backend.replay), 0)
+        agent._last_features = second
+        agent._last_action = 1
+        agent._learn_transition(first, [0, 1])
+        state, action, returns, _, _, bootstrap = agent.dqn_backend.replay[0]
+        self.assertEqual(action, 0)
+        self.assertAlmostEqual(returns, 0.5 * 4.0)
+        self.assertAlmostEqual(bootstrap, 0.25)
+        np.testing.assert_allclose(state, first)
 
 
 class UtilityTest(unittest.TestCase):
@@ -1510,6 +1628,154 @@ class UtilityTest(unittest.TestCase):
         paths = visualize.plot_all(history, outdir)
         for path in paths.values():
             self.assertTrue(os.path.exists(path))
+
+
+class PolicyViewTest(unittest.TestCase):
+    def test_stateless_policy_is_constant_across_intervals(self):
+        from policy_view import format_policy_report, view_from_backend
+        from QLearningAgent import QAction, TabularQ
+
+        backend = TabularQ()
+        backend.q[QAction.WRITE] = 1.0
+        backend.q[QAction.CLAIM] = 2.0
+        backend.q[QAction.CONTINUE] = 3.0
+        backend.q[QAction.FINISH_WRITE] = 0.5
+        view = view_from_backend(backend, title="stateless", publishing="threshold")
+
+        share, effort, progress = view.sweeps
+        self.assertTrue(all(action == "claim" for action in share.chosen))
+        self.assertTrue(all(action == "continue" for action in effort.chosen))
+        self.assertTrue(all(action == "claim" for action in progress.chosen))
+        report = format_policy_report(view)
+        self.assertIn("always claim", report)
+        self.assertIn("always continue", report)
+        self.assertIn("finish research", report)
+        self.assertIn("(not offered)", report)
+        self.assertEqual(view.situation_choices[1][1], "write")
+
+    def test_choice_publishing_offers_finish_research(self):
+        from policy_view import view_from_backend
+        from QLearningAgent import TabularQ
+
+        view = view_from_backend(TabularQ(), title="choice", publishing="choice")
+        self.assertIn("finish research", view.sweeps[0].action_names)
+
+    def test_discrete_table_changes_with_share_and_is_not_mutated(self):
+        import numpy as np
+
+        from DiscreteQLearningAgent import DiscreteTabularQ
+        from policy_view import _features, view_from_backend
+
+        backend = DiscreteTabularQ(buckets=5)
+        learned = _features(share=0.5, num_reviewable=1)
+        backend.table[backend._key(learned)] = np.array([0.0, 0.0, 5.0])
+        before = set(backend.table)
+        view = view_from_backend(backend, title="discrete buckets")
+        self.assertEqual(set(backend.table), before)
+        chosen = view.sweeps[0].chosen
+        self.assertEqual(chosen[0], "write")
+        self.assertEqual(chosen[-1], "good-faith claim")
+        self.assertGreater(len(set(chosen)), 1)
+
+    def test_linear_policy_switches_as_share_grows(self):
+        from DiscreteQLearningAgent import DiscreteLinearQ, DiscreteQAction
+        from policy_view import view_from_backend
+
+        backend = DiscreteLinearQ()
+        backend.W[DiscreteQAction.WRITE, -1] = 1.0
+        backend.W[DiscreteQAction.GOOD_FAITH_CLAIM, 5] = 10.0
+        backend.W[DiscreteQAction.GOOD_FAITH_CLAIM, -1] = -2.0
+        chosen = view_from_backend(backend, title="linear").sweeps[0].chosen
+        self.assertEqual(chosen[0], "write")
+        self.assertEqual(chosen[-1], "good-faith claim")
+
+    @unittest.skipUnless(_HAS_MPL, "matplotlib not installed")
+    def test_plot_agent_policy_writes_png(self):
+        import visualize
+        from policy_view import view_from_backend
+        from QLearningAgent import QAction, TabularQ
+
+        backend = TabularQ()
+        backend.q[QAction.CLAIM] = 1.5
+        backend.q[QAction.CONTINUE] = 0.4
+        view = view_from_backend(backend, title="chart", publishing="threshold")
+        outdir = tempfile.mkdtemp()
+        path = visualize.plot_agent_policy(view, os.path.join(outdir, "agent_policy.png"))
+        self.assertTrue(os.path.exists(path))
+        self.assertGreater(os.path.getsize(path), 1000)
+
+
+class TrainingSupplyTest(unittest.TestCase):
+    """Unlimited review supply stays off the heuristic market scan."""
+
+    def tearDown(self):
+        Agent.training_supply_holdings = []
+
+    def test_supply_is_always_claimable_without_heuristic_scoring(self):
+        from Agent import CONTINUOUS_CLAIM, CONTINUOUS_RESEARCH, CONTINUOUS_REVIEW
+
+        class AlwaysReview(HeuristicAgent):
+            def choose_continuous_action(self):
+                if self.active_review_paper is None:
+                    for paper in Agent.all_papers:
+                        if paper.review_available and paper.author is not self:
+                            return (CONTINUOUS_CLAIM, paper)
+                    return (CONTINUOUS_RESEARCH, None)
+                if self.active_review_effort < MIN_REVIEW_EFFORT_THRESHOLD:
+                    return (CONTINUOUS_REVIEW, None)
+                return (CONTINUOUS_RESEARCH, None)
+
+            def would_claim_paper(self, paper):
+                raise AssertionError("heuristic market scoring ran")
+
+            def claim_preference_score(self, paper):
+                raise AssertionError("heuristic market scoring ran")
+
+        agent = AlwaysReview(intrinsic_talent=1.0, name="Reviewer")
+        env = Environment(
+            agents=[agent],
+            papers=[],
+            unlimited_review_supply=True,
+            paper_effort_mode="fixed",
+            continuous_paper_timesteps=10_000,
+        )
+        old_surplus = config.SIM.reviewer_surplus_share
+        object.__setattr__(config.SIM, "reviewer_surplus_share", 1.0)
+        try:
+            env.run(40)
+        finally:
+            object.__setattr__(config.SIM, "reviewer_surplus_share", old_surplus)
+
+        self.assertEqual(env.papers, [])
+        self.assertEqual(len(env._supply_listed), 1)
+        reviewed = [paper for paper in env._supply_held if paper.reviewed]
+        self.assertGreater(len(reviewed), 5)
+        self.assertLess(len(env._supply_held), 40)
+        for paper in reviewed:
+            self.assertIs(paper.author, env._supply_author)
+            self.assertNotIn(paper.author, env.agents)
+            self.assertIs(paper.reviewer, agent)
+            self.assertNotIn(paper, env.papers)
+        paid = [
+            paper for paper in reviewed
+            if paper.share_distribution.get(agent, 0.0) > 0.0
+        ]
+        self.assertTrue(paid)
+        self.assertGreater(agent.academic_capital, 0.0)
+
+    def test_supply_toggle_off_leaves_the_market_unchanged(self):
+        agent = HeuristicAgent(intrinsic_talent=1.0, name="Writer")
+        env = Environment(
+            agents=[agent],
+            papers=[],
+            unlimited_review_supply=False,
+            paper_effort_mode="fixed",
+            continuous_paper_timesteps=10_000,
+        )
+        env.run(5)
+        self.assertEqual(env._supply_listed, [])
+        self.assertEqual(env._supply_held, [])
+        self.assertEqual(Agent.training_supply_holdings, [])
 
 
 if __name__ == "__main__":

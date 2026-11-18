@@ -51,8 +51,14 @@ CLI flags for one-off overrides.
   both `run_simulation.py` and the static `docs/` gallery compare heuristic,
   random, probabilistic, RL, and low-talent RL agent outcomes.
 - **RL settings** live in `SimConfig` too (`rl_backend`, `rl_epsilon`,
-  `rl_gamma`, reward weights). Continuous tabular/linear RL uses `train_rl.py`;
-  discrete 3-action RL (write / bad claim / good claim) uses
+  `rl_gamma`, reward weights). The RL price feature is log10-scaled over
+  `rl_share_feature_min`..`rl_share_feature_max` (`share_feature` in `QLearningAgent.py`) so
+  offers of different magnitudes land in different tabular buckets; retrain
+  policies after changing it or the pricing economics. Continuous tabular/linear RL uses `train_rl.py`.
+  Each training agent has its own Q table, so one agent's update does not change
+  the others; pass `--shared-policy` for the old single table. The greedy
+  evaluation keeps the table with the highest academic capital and saves it to
+  `policies/policy_<backend>`. Discrete 3-action RL (write / bad claim / good claim) uses
   `train_discrete_rl.py` and `DiscreteQLearningAgent`. Low-talent RL agents
   (`LowTalentQLearningAgent`) load a separate policy trained with
   `train_rl.py --low-talent` (saved to `policies/policy_<backend>_low_talent`).
@@ -91,6 +97,13 @@ CLI flags for one-off overrides.
 - `docs/` - static GitHub Pages gallery of saved runs (`docs/data/<run_id>/`).
 
 ## Commands
+
+For the integrated fixed-strategy experiment (no RL training), use
+`python run_talent_comparison.py --steps 1000 --seeds 11`.
+It enables shared quality/rate talents with publication experience and uses the
+configured citation system. Outputs go to `experiments/fixed_strategy_integrated`.
+Future opt-in training: `python train_rl.py --shared-talents --num-rl 80 --horizon 30 --no-archive`.
+Do not run training when the user requests only fixed-strategy simulation.
 
 ```bash
 # Run a simulation (prompts to archive afterward)
@@ -257,3 +270,20 @@ python run_simulation.py \
 - **Config-first**: change defaults in `config.py`; use CLI flags for one-offs.
 - **Determinism**: runs use a fixed `seed` (default 7) for reproducibility.
 - Frozen dataclasses for config; type hints use `from __future__ import annotations`.
+
+## Accepted legacy test failures (2026-09-28)
+
+The project owner explicitly requested that these nine existing test_simulation
+failures be ignored in future work. Do not investigate or block commits/pushes
+on these known failures unless requested. This exemption does not cover new
+failures. The same nine reproduce with publication experience disabled.
+
+- ContinuousMergedPhaseTest.test_reviewer_claim_switch_finalizes_old_review
+- EconomicsTest.test_review_bump_rises_and_saturates_with_sigmoid
+- HeuristicPolicyTest.test_work_phase_continues_when_marginal_effort_dominates
+- MarketEconomicsTest.test_environment_scarcity_multiplier_when_crowded
+- MarketplaceLifecycleTest.test_min_effort_review_earns_reward
+- ReviewParadigmTest.test_continuous_mode_classifies_finished_reviews_by_threshold
+- ReviewParadigmTest.test_discrete_bad_faith_review_finishes_after_one_timestep
+- ReviewerStateTest.test_grabbing_new_paper_finalizes_active_review
+- ReviewerStateTest.test_peer_review_history_updates_on_completion

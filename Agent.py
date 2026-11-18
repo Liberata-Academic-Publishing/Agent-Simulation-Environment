@@ -81,10 +81,18 @@ class ActionRecord:
     writing_effort: float | None = None
 
 
+def ownership_papers() -> list[Paper]:
+    """Papers whose shares count as ownership, including training-supply holdings."""
+    extra = Agent.training_supply_holdings
+    if not extra:
+        return Agent.all_papers
+    return [*Agent.all_papers, *extra]
+
+
 def portfolio_accrual_rate(agent: "Agent", papers: list[Paper] | None = None) -> float:
     """Share-weighted sum of accrual rates on papers this agent owns."""
     if papers is None:
-        papers = Agent.all_papers
+        papers = ownership_papers()
     total = 0.0
     for paper in papers:
         share = paper.share_distribution.get(agent, 0.0)
@@ -97,6 +105,9 @@ class Agent(ABC):
 
     all_papers: list[Paper] = []  # class variable shared across all agents
     all_agents: list[Agent] = []  # live roster for cross-agent signals (e.g. RL rank)
+    # Reviewed training-supply papers. Kept off ``all_papers`` so citation and
+    # history scans stay on the real corpus. Empty unless that training mode is on.
+    training_supply_holdings: list[Paper] = []
 
     def __init__(
         self,
@@ -107,6 +118,9 @@ class Agent(ABC):
         name: str | None = None,
     ):
         self.intrinsic_talent = intrinsic_talent
+        self.quality_talent = float(intrinsic_talent)
+        self.rate_talent = 1.0
+        self.talent_sampling_enabled = False
         self.academic_capital = academic_capital
         self.paper_progress = paper_progress
         self.review_progress = review_progress
@@ -172,7 +186,8 @@ class Agent(ABC):
         self.next_paper_quality: float | None = None
         self.next_paper_required_effort: float | None = None
 
-        # Public peer-review reputation: mean share-weighted accrual rate per review.
+        # Public peer-review reputation: mean share-weighted accrual rate per
+        # review, relative to the average paper's rate at review time.
         self.peer_review_history: float = 0.0
         self.total_accrual_rate_from_reviews: float = 0.0
         self.peer_review_epsilon_history: float = SIM.prior_review_epsilon
@@ -614,6 +629,14 @@ class Agent(ABC):
         else:
             kind, paper = self.choose_continuous_action()
 
+        # A reviewer has committed one unit of capacity to the current paper.
+        # Allowing a fresh claim to finalize it immediately lets agents consume
+        # scarce review slots with sub-threshold work. Continuous-mode switches
+        # therefore continue the existing review; a later explicit research turn
+        # is the only way to finish and release that commitment.
+        if kind == CONTINUOUS_CLAIM and self.active_review_paper is not None:
+            kind, paper = CONTINUOUS_REVIEW, None
+
         if kind == CONTINUOUS_CLAIM and paper is not None and paper.can_start_review(self):
             records: list[ActionRecord] = []
             finalized = self.claim_review(paper)
@@ -778,7 +801,9 @@ class Agent(ABC):
     ) -> None:
         """Update public peer-review reputation and epsilon history on completion."""
         self.completed_review_count += 1
-        self.total_accrual_rate_from_reviews += share * paper.accrual_rate
+        mean_rate = Paper.mean_accrual_rate
+        relative_rate = paper.accrual_rate / mean_rate if mean_rate > 0.0 else 0.0
+        self.total_accrual_rate_from_reviews += share * relative_rate
         self.peer_review_history = (
             self.total_accrual_rate_from_reviews / self.completed_review_count
         )
@@ -814,6 +839,7 @@ class Agent(ABC):
             quality=self.next_paper_quality or self._sample_quality(),
             writing_effort=self.paper_progress,
             required_writing_effort=self.next_paper_required_effort,
+            publish_timestep=self.current_timestep,
         )
         Agent.all_papers.append(paper)
         self._reset_next_paper_state()
@@ -852,6 +878,7 @@ class Agent(ABC):
             quality=self.next_paper_quality or self._sample_quality(),
             writing_effort=self.paper_progress,
             required_writing_effort=self.next_paper_required_effort,
+            publish_timestep=self.current_timestep,
         )
         Agent.all_papers.append(paper)
         self._reset_next_paper_state()
@@ -897,22 +924,97 @@ class Agent(ABC):
         scaled = 1.0 / (1.0 + math.exp(-3.0 * (quality_multiplier(quality) - 1.0)))
         return lo + (hi - lo) * scaled
 
+    def configure_talents(self, quality_talent: float, rate_talent: float) -> None:
+        """Enable shared writing/review talents before starting any work.
+
+        Talents are Gaussian location parameters, not samples themselves.
+        Outcomes are floored to remain positive. Existing strategies inherit
+        this hook, so their constructors need no changes.
+        """
+        quality, rate = float(quality_talent), float(rate_talent)
+        if not all(math.isfinite(x) and x > 0 for x in (quality, rate)):
+            raise ValueError("talents must be finite and positive")
+        if self.paper_progress or self.next_paper_quality is not None or self.active_review_paper is not None:
+            raise ValueError("configure talents before starting work")
+        self.quality_talent = quality
+        self.rate_talent = rate
+        self.intrinsic_talent = quality  # compatibility for strategy estimates
+        self.talent_sampling_enabled = True
+
+    def set_rate_talent(self, rate: float) -> None:
+        """Set working speed alone, leaving quality and experience untouched."""
+        rate = float(rate)
+        if not math.isfinite(rate) or rate <= 0:
+            raise ValueError("rate talent must be finite and positive")
+        self.rate_talent = rate
+
+    @property
+    def publication_count(self) -> int:
+        """Authored publications in this world, including seeded papers.
+
+        Counted incrementally: papers are only ever appended to
+        ``Agent.all_papers``, so each call scans just the new ones.
+        """
+        papers = Agent.all_papers
+        cache = getattr(self, "_publication_cache", None)
+        if cache is None or cache[0] is not papers or cache[1] > len(papers):
+            cache = (papers, 0, 0)
+        _, seen, count = cache
+        for paper in papers[seen:]:
+            if paper.author is self:
+                count += 1
+        self._publication_cache = (papers, len(papers), count)
+        return count
+
+    @property
+    def experience_multiplier(self) -> float:
+        enabled = self.talent_sampling_enabled or SIM.use_experience_growth
+        if not enabled or SIM.experience_alpha == 0:
+            return 1.0
+        count = self.publication_count
+        return 1.0 + SIM.experience_alpha * count / (count + SIM.experience_h)
+
+    @property
+    def effective_quality_talent(self) -> float:
+        base = self.quality_talent if self.talent_sampling_enabled else self.intrinsic_talent
+        return base * self.experience_multiplier
+
+    @property
+    def effective_rate_talent(self) -> float:
+        return self.rate_talent * self.experience_multiplier
+
     def _sample_quality(self) -> float:
-        return quality_multiplier(random.gauss(self.intrinsic_talent, QUALITY_SIGMA))
+        mean = self.effective_quality_talent
+        return quality_multiplier(random.gauss(mean, QUALITY_SIGMA))
+
+    def sample_review_quality(self) -> float:
+        """One independent quality draw per completed review; legacy multiplier 1."""
+        if self.talent_sampling_enabled or SIM.use_review_quality_draws:
+            return self._sample_quality()
+        return 1.0
+
+    def _sample_rate(self) -> float:
+        if not self.talent_sampling_enabled:
+            return self.effective_rate_talent
+        return max(SIM.talent_min_rate, random.gauss(self.effective_rate_talent, SIM.talent_rate_sigma))
 
     def review_effort_delta(self) -> float:
         """Review effort contributed in one timestep."""
-        return REVIEW_EFFORT_PER_TIMESTEP
+        return REVIEW_EFFORT_PER_TIMESTEP * self._sample_rate()
 
     def writing_effort_delta(self) -> float:
         """Writing effort contributed in one timestep."""
         if self.review_paradigm == REVIEW_PARADIGM_DISCRETE:
-            return DISCRETE_WRITING_EFFORT_PER_TIMESTEP
-        return WRITING_EFFORT_PER_TIMESTEP
+            return DISCRETE_WRITING_EFFORT_PER_TIMESTEP * self._sample_rate()
+        return WRITING_EFFORT_PER_TIMESTEP * self._sample_rate()
 
     def paper_completion_threshold(self) -> float:
         if self.continuous_publish_by_threshold():
-            return self.continuous_paper_timesteps
+            if self.paper_effort_mode == PAPER_EFFORT_MODE_FIXED:
+                return self.continuous_paper_timesteps
+            # Each manuscript auto-publishes at its own sampled effort target.
+            self._ensure_next_paper_state()
+            return self.next_paper_required_effort
         self._ensure_next_paper_state()
         if self.next_paper_required_effort is not None:
             if (
@@ -938,3 +1040,16 @@ class Agent(ABC):
         if math.isnan(effort) or math.isinf(effort) or effort < 0.0:
             return 0.0
         return effort
+
+
+def assign_rate_talents(
+    agents: list[Agent],
+    rng: random.Random | None = None,
+    rate_min: float = SIM.rate_talent_min,
+    rate_max: float = SIM.rate_talent_max,
+) -> None:
+    """Give each agent an independent uniform rate talent (working speed)."""
+    chooser = rng if rng is not None else random
+    lo, hi = min(rate_min, rate_max), max(rate_min, rate_max)
+    for agent in agents:
+        agent.set_rate_talent(chooser.uniform(lo, hi))

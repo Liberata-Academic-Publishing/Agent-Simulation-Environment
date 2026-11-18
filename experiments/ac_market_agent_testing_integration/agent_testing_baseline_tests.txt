@@ -1,0 +1,223 @@
+......F..F........F.F...FF.F..F..F....FF.......F.FF.FF...F..................FF....FF......C:\Users\26840\AppData\Local\Packages\openai.codex_2p2nqsd0c76g0\AC\#!sandbox.{7e06c568-97db-42cc-88fa-c78f822e46d9}\Temp\agent-testing-baseline-9rtam7bs\visualize.py:499: UserWarning: No artists with labels found to put in legend.  Note that artists whose label start with an underscore are ignored when legend() is called with no argument.
+  ax.legend(fontsize=8, loc="best")
+.
+======================================================================
+FAIL: test_reviewer_claim_switch_finalizes_old_review (test_simulation.ContinuousMergedPhaseTest.test_reviewer_claim_switch_finalizes_old_review)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\26840\AppData\Local\Packages\openai.codex_2p2nqsd0c76g0\AC\#!sandbox.{7e06c568-97db-42cc-88fa-c78f822e46d9}\Temp\agent-testing-baseline-9rtam7bs\test_simulation.py", line 1170, in test_reviewer_claim_switch_finalizes_old_review
+    self.assertEqual(
+    ~~~~~~~~~~~~~~~~^
+        [r.kind for r in records],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+        ["review_finished_peer_review", "review_started"],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+AssertionError: Lists differ: ['review_continued'] != ['review_finished_peer_review', 'review_started']
+
+First differing element 0:
+'review_continued'
+'review_finished_peer_review'
+
+Second list contains 1 additional elements.
+First extra element 1:
+'review_started'
+
+- ['review_continued']
++ ['review_finished_peer_review', 'review_started']
+
+======================================================================
+FAIL: test_auto_publishes_when_writing_effort_reaches_threshold (test_simulation.ContinuousThresholdPublishingTest.test_auto_publishes_when_writing_effort_reaches_threshold)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\26840\AppData\Local\Packages\openai.codex_2p2nqsd0c76g0\AC\#!sandbox.{7e06c568-97db-42cc-88fa-c78f822e46d9}\Temp\agent-testing-baseline-9rtam7bs\test_simulation.py", line 1213, in test_auto_publishes_when_writing_effort_reaches_threshold
+    self.assertTrue(records[0].published)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_discrete_rl_good_faith_review_runs_five_timesteps (test_simulation.DiscreteQLearningAgentTest.test_discrete_rl_good_faith_review_runs_five_timesteps)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\26840\AppData\Local\Packages\openai.codex_2p2nqsd0c76g0\AC\#!sandbox.{7e06c568-97db-42cc-88fa-c78f822e46d9}\Temp\agent-testing-baseline-9rtam7bs\test_simulation.py", line 1330, in test_discrete_rl_good_faith_review_runs_five_timesteps
+    self.assertTrue(paper.reviewed)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_fair_market_offer_scales_down_with_existing_ac (test_simulation.EconomicsTest.test_fair_market_offer_scales_down_with_existing_ac)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\26840\AppData\Local\Packages\openai.codex_2p2nqsd0c76g0\AC\#!sandbox.{7e06c568-97db-42cc-88fa-c78f822e46d9}\Temp\agent-testing-baseline-9rtam7bs\test_simulation.py", line 270, in test_fair_market_offer_scales_down_with_existing_ac
+    self.assertGreater(fresh.offered_share(reviewer), seasoned.offered_share(reviewer))
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0.0 not greater than 0.0
+
+======================================================================
+FAIL: test_price_drops_for_higher_quality_papers (test_simulation.EconomicsTest.test_price_drops_for_higher_quality_papers)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\26840\AppData\Local\Packages\openai.codex_2p2nqsd0c76g0\AC\#!sandbox.{7e06c568-97db-42cc-88fa-c78f822e46d9}\Temp\agent-testing-baseline-9rtam7bs\test_simulation.py", line 240, in test_price_drops_for_higher_quality_papers
+    self.assertGreater(low_q.offered_share(reviewer), high_q.offered_share(reviewer))
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0.0 not greater than 0.0
+
+======================================================================
+FAIL: test_price_rises_for_stronger_reviewer_epsilon_history (test_simulation.EconomicsTest.test_price_rises_for_stronger_reviewer_epsilon_history)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\26840\AppData\Local\Packages\openai.codex_2p2nqsd0c76g0\AC\#!sandbox.{7e06c568-97db-42cc-88fa-c78f822e46d9}\Temp\agent-testing-baseline-9rtam7bs\test_simulation.py", line 288, in test_price_rises_for_stronger_reviewer_epsilon_history
+    self.assertGreater(paper.offered_share(veteran), paper.offered_share(rookie))
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0.0 not greater than 0.0
+
+======================================================================
+FAIL: test_review_bump_rises_and_saturates_with_sigmoid (test_simulation.EconomicsTest.test_review_bump_rises_and_saturates_with_sigmoid)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\26840\AppData\Local\Packages\openai.codex_2p2nqsd0c76g0\AC\#!sandbox.{7e06c568-97db-42cc-88fa-c78f822e46d9}\Temp\agent-testing-baseline-9rtam7bs\test_simulation.py", line 198, in test_review_bump_rises_and_saturates_with_sigmoid
+    self.assertGreater(b1, 0.0)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^
+AssertionError: 0.0 not greater than 0.0
+
+======================================================================
+FAIL: test_full_run_produces_reviews (test_simulation.EnvironmentTest.test_full_run_produces_reviews)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\26840\AppData\Local\Packages\openai.codex_2p2nqsd0c76g0\AC\#!sandbox.{7e06c568-97db-42cc-88fa-c78f822e46d9}\Temp\agent-testing-baseline-9rtam7bs\test_simulation.py", line 1015, in test_full_run_produces_reviews
+    self.assertGreater(completed, 0)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+AssertionError: 0 not greater than 0
+
+======================================================================
+FAIL: test_history_records_accepted_review_price_on_claim (test_simulation.EnvironmentTest.test_history_records_accepted_review_price_on_claim)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\26840\AppData\Local\Packages\openai.codex_2p2nqsd0c76g0\AC\#!sandbox.{7e06c568-97db-42cc-88fa-c78f822e46d9}\Temp\agent-testing-baseline-9rtam7bs\test_simulation.py", line 1060, in test_history_records_accepted_review_price_on_claim
+    self.assertGreater(expected, 0.0)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+AssertionError: 0.0 not greater than 0.0
+
+======================================================================
+FAIL: test_claims_highest_value_listed_paper (test_simulation.HeuristicPolicyTest.test_claims_highest_value_listed_paper)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\26840\AppData\Local\Packages\openai.codex_2p2nqsd0c76g0\AC\#!sandbox.{7e06c568-97db-42cc-88fa-c78f822e46d9}\Temp\agent-testing-baseline-9rtam7bs\test_simulation.py", line 830, in test_claims_highest_value_listed_paper
+    self.assertIs(agent.choose_marketplace_action(), high)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: None is not <Paper.Paper object at 0x000002F761065E50>
+
+======================================================================
+FAIL: test_work_phase_continues_when_marginal_effort_dominates (test_simulation.HeuristicPolicyTest.test_work_phase_continues_when_marginal_effort_dominates)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\26840\AppData\Local\Packages\openai.codex_2p2nqsd0c76g0\AC\#!sandbox.{7e06c568-97db-42cc-88fa-c78f822e46d9}\Temp\agent-testing-baseline-9rtam7bs\test_simulation.py", line 858, in test_work_phase_continues_when_marginal_effort_dominates
+    self.assertEqual(action, "peer_review")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'finish_review_write_paper' != 'peer_review'
+- finish_review_write_paper
++ peer_review
+
+
+======================================================================
+FAIL: test_binned_multiplier_applies_per_reviewer_in_price_table (test_simulation.MarketEconomicsTest.test_binned_multiplier_applies_per_reviewer_in_price_table)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\26840\AppData\Local\Packages\openai.codex_2p2nqsd0c76g0\AC\#!sandbox.{7e06c568-97db-42cc-88fa-c78f822e46d9}\Temp\agent-testing-baseline-9rtam7bs\test_simulation.py", line 578, in test_binned_multiplier_applies_per_reviewer_in_price_table
+    self.assertGreater(veteran_offer, rookie_offer)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0.0 not greater than 0.0
+
+======================================================================
+FAIL: test_competition_forecast_reduces_claim_intent (test_simulation.MarketEconomicsTest.test_competition_forecast_reduces_claim_intent)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\26840\AppData\Local\Packages\openai.codex_2p2nqsd0c76g0\AC\#!sandbox.{7e06c568-97db-42cc-88fa-c78f822e46d9}\Temp\agent-testing-baseline-9rtam7bs\test_simulation.py", line 438, in test_competition_forecast_reduces_claim_intent
+    self.assertIs(agent.choose_marketplace_action(), paper)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: None is not <Paper.Paper object at 0x000002F7610674D0>
+
+======================================================================
+FAIL: test_environment_scarcity_multiplier_when_crowded (test_simulation.MarketEconomicsTest.test_environment_scarcity_multiplier_when_crowded)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\26840\AppData\Local\Packages\openai.codex_2p2nqsd0c76g0\AC\#!sandbox.{7e06c568-97db-42cc-88fa-c78f822e46d9}\Temp\agent-testing-baseline-9rtam7bs\test_simulation.py", line 422, in test_environment_scarcity_multiplier_when_crowded
+    self.assertLess(env.scarcity_multiplier, 1.0)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1.0 not less than 1.0
+
+======================================================================
+FAIL: test_legacy_heuristic_claim_unchanged_when_flags_off (test_simulation.MarketEconomicsTest.test_legacy_heuristic_claim_unchanged_when_flags_off)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\26840\AppData\Local\Packages\openai.codex_2p2nqsd0c76g0\AC\#!sandbox.{7e06c568-97db-42cc-88fa-c78f822e46d9}\Temp\agent-testing-baseline-9rtam7bs\test_simulation.py", line 593, in test_legacy_heuristic_claim_unchanged_when_flags_off
+    self.assertIs(agent.choose_marketplace_action(), high)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: None is not <Paper.Paper object at 0x000002F76108D1D0>
+
+======================================================================
+FAIL: test_merit_clearing_assigns_highest_scoring_reviewer (test_simulation.MarketEconomicsTest.test_merit_clearing_assigns_highest_scoring_reviewer)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\26840\AppData\Local\Packages\openai.codex_2p2nqsd0c76g0\AC\#!sandbox.{7e06c568-97db-42cc-88fa-c78f822e46d9}\Temp\agent-testing-baseline-9rtam7bs\test_simulation.py", line 465, in test_merit_clearing_assigns_highest_scoring_reviewer
+    self.assertIs(veteran.market_claim_assignment, paper)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: None is not <Paper.Paper object at 0x000002F76108D6D0>
+
+======================================================================
+FAIL: test_min_effort_review_earns_reward (test_simulation.MarketplaceLifecycleTest.test_min_effort_review_earns_reward)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\26840\AppData\Local\Packages\openai.codex_2p2nqsd0c76g0\AC\#!sandbox.{7e06c568-97db-42cc-88fa-c78f822e46d9}\Temp\agent-testing-baseline-9rtam7bs\test_simulation.py", line 160, in test_min_effort_review_earns_reward
+    self.assertGreater(share, 0.0)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+AssertionError: 0.0 not greater than 0.0
+
+======================================================================
+FAIL: test_continuous_mode_classifies_finished_reviews_by_threshold (test_simulation.ReviewParadigmTest.test_continuous_mode_classifies_finished_reviews_by_threshold)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\26840\AppData\Local\Packages\openai.codex_2p2nqsd0c76g0\AC\#!sandbox.{7e06c568-97db-42cc-88fa-c78f822e46d9}\Temp\agent-testing-baseline-9rtam7bs\test_simulation.py", line 703, in test_continuous_mode_classifies_finished_reviews_by_threshold
+    self.assertEqual(record.review_kind, GOOD_FAITH_REVIEW)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'bad_faith' != 'good_faith'
+- bad_faith
+? ^^
++ good_faith
+? ^^^
+
+
+======================================================================
+FAIL: test_discrete_bad_faith_review_finishes_after_one_timestep (test_simulation.ReviewParadigmTest.test_discrete_bad_faith_review_finishes_after_one_timestep)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\26840\AppData\Local\Packages\openai.codex_2p2nqsd0c76g0\AC\#!sandbox.{7e06c568-97db-42cc-88fa-c78f822e46d9}\Temp\agent-testing-baseline-9rtam7bs\test_simulation.py", line 734, in test_discrete_bad_faith_review_finishes_after_one_timestep
+    self.assertGreater(paper.review_records[-1]["epsilon"], 0.0)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0.0 not greater than 0.0
+
+======================================================================
+FAIL: test_grabbing_new_paper_finalizes_active_review (test_simulation.ReviewerStateTest.test_grabbing_new_paper_finalizes_active_review)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\26840\AppData\Local\Packages\openai.codex_2p2nqsd0c76g0\AC\#!sandbox.{7e06c568-97db-42cc-88fa-c78f822e46d9}\Temp\agent-testing-baseline-9rtam7bs\test_simulation.py", line 672, in test_grabbing_new_paper_finalizes_active_review
+    self.assertIn(reviewer, first.share_distribution)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <test_simulation.ScriptAgent object at 0x000002F7623820D0> not found in {<test_simulation.ScriptAgent object at 0x000002F762382210>: 1.0}
+
+======================================================================
+FAIL: test_peer_review_history_updates_on_completion (test_simulation.ReviewerStateTest.test_peer_review_history_updates_on_completion)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\26840\AppData\Local\Packages\openai.codex_2p2nqsd0c76g0\AC\#!sandbox.{7e06c568-97db-42cc-88fa-c78f822e46d9}\Temp\agent-testing-baseline-9rtam7bs\test_simulation.py", line 627, in test_peer_review_history_updates_on_completion
+    self.assertGreater(reviewer.peer_review_history, 0.0)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0.0 not greater than 0.0
+
+----------------------------------------------------------------------
+Ran 91 tests in 54.741s
+
+FAILED (failures=21)
+RL: 2 separate tabular policies, starting from scratch, learning online.
+Low-talent RL: 2 separate tabular policies (talent=0.3), starting from scratch, learning online.

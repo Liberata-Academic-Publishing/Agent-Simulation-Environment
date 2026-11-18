@@ -59,8 +59,10 @@ def seed_initial_papers(agents: list[Agent], rng: random.Random) -> None:
                 author=agent,
                 quality=agent.intrinsic_talent,
                 current_ac=rng.uniform(SIM.init_ac_min, SIM.init_ac_max),
-                market_listed=True,
+                market_listed=False,
             )
+            stagger = max(1, int(SIM.initial_listing_stagger_timesteps))
+            paper.scheduled_listing_timestep = 1 + ((index - 1) % stagger)
             paper.title = f"Paper {index}"
             Agent.all_papers.append(paper)
 
@@ -74,7 +76,7 @@ def build_env(
     num_heuristic: int,
     horizon: int,
     seed: int,
-    gamma: float = 0.95,
+    gamma: float = SIM.rl_gamma,
     history: History | None = None,
     intrinsic_talent: float = 1.0,
 ) -> tuple[Environment, list[DiscreteQLearningAgent], list[HeuristicAgent]]:
@@ -110,6 +112,7 @@ def build_env(
         forecast_horizon_timesteps=horizon,
         review_paradigm=REVIEW_PARADIGM_DISCRETE,
         history=history,
+        unlimited_review_supply=TRAIN_DISCRETE.unlimited_review_supply,
     )
     return env, rl_agents, heuristics
 
@@ -295,6 +298,10 @@ def train(args) -> None:
         os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
         backend.save(save_path)
         print(f"Saved discrete policy to {save_path}")
+
+    from policy_view import emit_policy_chart
+
+    emit_policy_chart(backend, title="Discrete RL policy")
 
     if training_log:
         if args.no_archive:
